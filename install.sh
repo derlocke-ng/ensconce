@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# installer for ensconce — nova convention: ./install.sh install|update|uninstall
+# installer for ensconce — kiwi convention: ./install.sh install|update|uninstall
 #
 # User scope ONLY: ensconce configures *your* desktop session, and the steps
 # that touch system state (rpm-ostree, /etc, GDM) prompt for sudo themselves.
@@ -15,10 +15,10 @@ set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ACTION="${1:-install}"
 
-[[ "${NOVA_SCOPE:-user}" == "user" ]] || {
+[[ "${KIWI_SCOPE:-user}" == "user" ]] || {
     echo "error: ensconce is user-only (SCOPE=user)" >&2; exit 1; }
 
-PREFIX="${NOVA_PREFIX:-$HOME/.local}"
+PREFIX="${KIWI_PREFIX:-$HOME/.local}"
 BIN="$PREFIX/bin"
 LIBDIR="$PREFIX/share/ensconce"
 CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ensconce"

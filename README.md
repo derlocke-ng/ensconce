@@ -8,11 +8,11 @@ Nextcloud sync, desktop settings, and more.
 
 ## Quick Start
 
-Via [nova-updater](https://github.com/nv-core/nova-updater) (it is in the
-[nova-catalog](https://github.com/nv-core/nova-catalog)):
+Via [kiwi-updater](https://github.com/derlocke-ng/kiwi-updater) (it is in the
+[kiwi-catalog](https://github.com/derlocke-ng/kiwi-catalog)):
 
 ```bash
-nova install ensconce
+kiwi install ensconce
 ensconce --init          # create ~/.config/ensconce from examples
 ensconce                 # run setup
 ```
@@ -20,7 +20,7 @@ ensconce                 # run setup
 …or straight from a clone:
 
 ```bash
-git clone https://github.com/nv-core/ensconce.git
+git clone https://github.com/derlocke-ng/ensconce.git
 cd ensconce
 ./ensconce.sh --init     # Create config/ from examples
 # Edit files in config/ to match your setup
@@ -108,8 +108,8 @@ The dconf keys are saved before the run and put back afterwards — unless the
 ```
 ensconce/
 ├── ensconce.sh             Main entry point
-├── install.sh              nova installer (install|update|uninstall)
-├── nova.manifest           nova app metadata
+├── install.sh              kiwi installer (install|update|uninstall)
+├── kiwi.manifest           kiwi app metadata
 ├── lib/                    Shared library modules
 │   ├── logging.sh          Output formatting & log-to-file
 │   ├── helpers.sh          run_cmd, confirm, image detection
@@ -141,7 +141,7 @@ The config directory is searched in this order, first match wins:
 | Location | Used when |
 |---|---|
 | `$ENSCONCE_CONFIG` | explicitly set |
-| `~/.config/ensconce/` | installed via nova |
+| `~/.config/ensconce/` | installed via kiwi |
 | `<repo>/config/` | working from a clone (gitignored) |
 | `<repo>/config.example/` | fallback — warns on every run |
 
@@ -247,7 +247,7 @@ filesystems=~/games;xdg-run/gvfs
 
 ## Installation Layout
 
-Installed by nova (`SCOPE=user`, no root):
+Installed by kiwi (`SCOPES=user`, no root):
 
 | Path | Contents |
 |---|---|
@@ -294,4 +294,4 @@ Ensconce is designed to be reusable for custom OS image builds
 
 GPL-3.0
 
-Copyright (C) 2026 Nova Core Team
+Copyright (C) 2026 derlocke-ng

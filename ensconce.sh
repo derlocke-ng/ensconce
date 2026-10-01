@@ -129,7 +129,7 @@ load_steps() {
 # Where the config lives, in priority order:
 #
 #   1. $ENSCONCE_CONFIG        explicit override
-#   2. ~/.config/ensconce      XDG — how a nova-installed ensconce stores it
+#   2. ~/.config/ensconce      XDG — how a kiwi-installed ensconce stores it
 #   3. <repo>/config           working from a git clone
 #   4. <repo>/config.example   fallback, with a warning
 #
