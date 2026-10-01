@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-ENSCONCE_VERSION="2.1.0"
+ENSCONCE_VERSION="2.1.1"
 
 # Resolve through symlinks: an installed copy lives in <prefix>/share/ensconce
 # with <prefix>/bin/ensconce pointing at it, and lib/ + steps/ have to be found
