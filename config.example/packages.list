@@ -1,0 +1,12 @@
+# RPM packages to layer via rpm-ostree
+# One package per line. Comments (#) and blank lines are ignored.
+#
+# These get installed on top of the base Bluefin image.
+# After layering, a reboot is required.
+#
+# Find packages: rpm-ostree search <name>
+
+# Example packages:
+# btop
+# gparted
+# nextcloud-client

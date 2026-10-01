@@ -1,0 +1,11 @@
+# Nautilus sidebar bookmarks (GTK3 format)
+# One bookmark per line: file:///path Name
+#
+# Note: '#' is NOT a comment character in GTK's bookmark format — this file
+# is installed verbatim. Delete these lines before use.
+#
+# Example:
+# sftp://myserver/home/myuser home@myserver
+# file:///home/myuser/Documents Documents
+# file:///home/myuser/games Games
+# file:///home/myuser/projects Projects

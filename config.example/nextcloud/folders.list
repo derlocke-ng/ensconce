@@ -1,0 +1,14 @@
+# Nextcloud sync folder definitions
+# Format: localPath|remotePath[|exclude-tags]
+#
+# localPath:     relative to $HOME
+# remotePath:    path on Nextcloud server
+# exclude-tags:  comma-separated, match files in nextcloud/exclude.d/*.lst
+#
+# Comments (#) and blank lines are ignored.
+# Set NEXTCLOUD_SERVER in settings.sh first!
+
+# Example folders:
+# Documents|/Documents
+# Pictures|/Pictures
+# .var/app/io.gitlab.librewolf-community|/cloud/apps/io.gitlab.librewolf-community|browser

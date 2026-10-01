@@ -1,0 +1,5 @@
+[Context]
+filesystems=~/.var/app/com.usebottles.bottles/data/bottles/bottles/games/drive_c;xdg-run/gvfs;~/games
+
+[System Bus Policy]
+org.gtk.vfs.*=talk

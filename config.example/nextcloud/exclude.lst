@@ -1,0 +1,43 @@
+# Nextcloud global sync exclusions
+# Applied to ALL sync folders via ~/.config/Nextcloud/sync-exclude.lst
+
+# Standard temp/lock patterns
+*~
+~$*
+.~lock.*
+~*.tmp
+]*.~*
+]Icon\r*
+].DS_Store
+*.textClipping
+._*
+]Thumbs.db
+System Volume Information
+
+# Editor swap files
+.*.sw?
+.*.*sw?
+
+# OS junk
+].TemporaryItems
+].Trashes
+.Trash-*
+
+# Partial downloads
+*.part
+*.filepart
+*.crdownload
+
+# Sync tool internals
+.synkron.*
+.sync.ffs_db
+.fuse_hidden*
+*.unison
+.nfs*
+.stfolder
+.stignore
+.stversions
+
+# General temp files
+*.tmp
+*.temp

@@ -1,0 +1,90 @@
+# Browser profile sync exclusions (LibreWolf, Firefox, Brave, Chrome)
+# Placed as .sync-exclude.lst in folders tagged "browser"
+#
+# Prevents SQLite database corruption when browser is open on multiple machines.
+# Use xBrowserSync or native browser sync for bookmarks instead!
+#
+# Safe files that WILL still sync:
+#   user.js, bookmarkbackups/, extensions/, extensions.json,
+#   search.json.mozlz4, handlers.json
+
+# ── SQLite databases — NEVER sync ──
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+
+# ── Lock files ──
+*.parentlock
+.parentlock
+lockfile
+lock
+SingletonLock
+SingletonSocket
+SingletonCookie
+
+# ── Caches ──
+cache2/
+cache/
+Cache/
+Code Cache/
+GPUCache/
+GrShaderCache/
+ShaderCache/
+shader-cache/
+startupCache/
+jumpListCache/
+thumbnails/
+OfflineCache/
+
+# ── Session/state ──
+sessionstore.jsonlz4
+sessionstore-backups/
+sessionCheckpoints.json
+recovery.jsonlz4
+recovery.baklz4
+previous.jsonlz4
+
+# ── Storage (IndexedDB/localStorage) ──
+storage/
+IndexedDB/
+Local Storage/
+Session Storage/
+webappsstore.sqlite*
+
+# ── Chromium-specific ──
+Favicons/
+Favicons-journal
+History/
+History-journal
+"Web Data"
+"Web Data-journal"
+Cookies/
+Cookies-journal
+"Login Data"
+"Login Data-journal"
+"Extension Cookies"
+"Extension Cookies-journal"
+LOCK
+LOG
+LOG.old
+CURRENT
+MANIFEST-*
+*.log
+*.ldb
+
+# ── Brave-specific ──
+tor/
+Crash Reports/
+BrowserMetrics/
+BraveWallet/
+Rewards*/
+
+# ── Runtime / telemetry ──
+Temp/
+crashes/
+crash reports/
+minidumps/
+datareporting/
+Pending Pings/
+saved-telemetry-pings/

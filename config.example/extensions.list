@@ -1,0 +1,13 @@
+# GNOME Shell extensions to install
+# One extension UUID per line. Comments (#) and blank lines are ignored.
+#
+# Find UUIDs at https://extensions.gnome.org
+# The UUID is shown on the extension page URL and metadata.
+#
+# Extensions are installed to ~/.local/share/gnome-shell/extensions/
+# (user-space, no /usr/ writes — Silverblue safe)
+
+# Popular extensions:
+# caffeine@patapon.info
+# dash-to-dock@micxgx.gmail.com
+# appindicatorsupport@rgcjonas.gmail.com

@@ -1,0 +1,8 @@
+# kiwi.manifest — app metadata for the kiwi updater
+NAME=ensconce
+DESCRIPTION=Modular post-installation setup for Bluefin-DX — packages, Flatpaks, extensions, Nextcloud, dconf and login screen from plain list files, with --export to clone a machine's setup
+VERSION=2.1.0
+COMPONENTS=cli
+SCOPES=user
+INSTALLER=install.sh
+

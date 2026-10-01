@@ -1,0 +1,27 @@
+# Flatpak applications to install from Flathub
+# One app ID per line. Comments (#) and blank lines are ignored.
+#
+# Find app IDs: flatpak search <name>
+# Or browse: https://flathub.org
+
+# Browsers
+# com.brave.Browser
+# io.gitlab.librewolf-community
+
+# Productivity
+# org.libreoffice.LibreOffice
+# md.obsidian.Obsidian
+
+# Communication
+# com.discordapp.Discord
+
+# Media
+# org.videolan.VLC
+# com.spotify.Client
+
+# Gaming
+# com.valvesoftware.Steam
+# com.usebottles.bottles
+
+# Security
+# com.bitwarden.desktop

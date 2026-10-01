@@ -1,0 +1,5 @@
+[Context]
+filesystems=/tmp/games;xdg-download;xdg-pictures;xdg-run/gvfsd;~/games;~/.var/app/com.valvesoftware.Steam/data/Steam;xdg-data/applications
+
+[System Bus Policy]
+org.gtk.vfs.*=talk

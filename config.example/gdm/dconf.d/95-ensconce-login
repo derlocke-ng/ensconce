@@ -1,0 +1,48 @@
+# Login screen (GDM) settings — installed to /etc/dconf/db/gdm.d/
+#
+# Applied with `dconf update`, which compiles this into the gdm dconf profile.
+# The greeter runs as the "gdm" user, so these are separate from the desktop
+# settings in config/dconf-settings.ini.
+#
+# Check a key name before adding it:
+#   gsettings describe org.gnome.desktop.peripherals.mouse accel-profile
+
+# ── Pointer ─────────────────────────────────────────────────────────────
+# 'flat' turns mouse acceleration off; 'default' or 'adaptive' turns it on.
+[org/gnome/desktop/peripherals/mouse]
+accel-profile='flat'
+speed=0.0
+natural-scroll=false
+
+[org/gnome/desktop/peripherals/touchpad]
+accel-profile='flat'
+tap-to-click=true
+natural-scroll=false
+
+# ── Appearance ──────────────────────────────────────────────────────────
+# scaling-factor is the *integer* scale: 0 = let mutter decide, 1 = 100%,
+# 2 = 200%. Pin it to 1 to stop the greeter picking its own scale.
+# Fractional scales (125%, 150%) do not live here — they come from
+# monitors.xml, see config/gdm/monitors.xml below.
+[org/gnome/desktop/interface]
+scaling-factor=uint32 1
+cursor-theme='Adwaita'
+cursor-size=24
+color-scheme='prefer-dark'
+
+# Fractional scaling support for the greeter. Remove this if you want the
+# login screen locked to whole-number scaling only.
+[org/gnome/mutter]
+experimental-features=['scale-monitor-framebuffer']
+
+# ── Greeter behaviour ───────────────────────────────────────────────────
+[org/gnome/login-screen]
+banner-message-enable=false
+disable-user-list=false
+enable-fingerprint-authentication=false
+
+# ── Power ───────────────────────────────────────────────────────────────
+# Don't let the login screen suspend the machine on its own.
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
