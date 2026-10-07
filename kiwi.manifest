@@ -12,6 +12,7 @@ TAGS=setup provisioning postinstall bluefin silverblue flatpak dconf packages
 
 SCOPES=user
 
+ICON=data/ensconce.svg
 ABOUT=README.md
 DEPENDS=git
 
