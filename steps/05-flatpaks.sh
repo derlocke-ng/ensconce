@@ -11,9 +11,9 @@ step_flatpaks() {
     fi
 
     # Ensure Flathub is enabled
-    if ! flatpak remote-list | grep -q flathub; then
+    if ! flatpak remote-list --system | grep -q flathub; then
         log_info "Adding Flathub repository..."
-        run_cmd flatpak remote-add --if-not-exists flathub \
+        run_cmd flatpak remote-add --system --if-not-exists flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
     fi
 
@@ -44,7 +44,7 @@ step_flatpaks() {
             log_info "Already installed: $app"
         else
             log_info "Installing: $app"
-            run_cmd flatpak install -y flathub "$app" \
+            run_cmd flatpak install --system -y flathub "$app" \
                 || log_warn "Failed to install: $app"
         fi
     done
