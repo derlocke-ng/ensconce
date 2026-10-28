@@ -1,0 +1,17 @@
+# kiwi apps to install with kiwi-updater (set KIWI_INSTALL in settings.sh)
+# One app name per line, as `kiwi install <name>` takes it — `kiwi search`
+# lists them. Comments (#) and blank lines are ignored.
+#
+# Browse: https://github.com/derlocke-ng/kiwi-catalog
+
+# This tool, so kiwi keeps it updated
+# ensconce
+
+# Desktop
+# kiwi-cli-tools-desktop
+# syncman
+
+# Network — kiwi-killswitch has a root half: KIWI_INSTALL=recommended or manual
+# kiwi-killswitch
+# kiwi-fox
+# kiwi-plugin-tor

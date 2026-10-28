@@ -23,5 +23,5 @@
 # com.valvesoftware.Steam
 # com.usebottles.bottles
 
-# Security
+# Security — also the SSH agent with SSH_AGENT=bitwarden in settings.sh
 # com.bitwarden.desktop

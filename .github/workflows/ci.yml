@@ -1,0 +1,14 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: release gate — ensconce.sh and kiwi.manifest agree on the version
+        run: bash tests/check-version.sh
+      - name: every script parses
+        run: for f in ensconce.sh install.sh dconf-backup.sh lib/*.sh steps/*.sh tests/*.sh; do bash -n "$f"; done
+      - name: ssh and kiwi steps, and their export, in a throwaway HOME
+        run: bash tests/steps.sh
