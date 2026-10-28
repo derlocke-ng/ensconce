@@ -487,6 +487,100 @@ _export_gdm() {
 }
 
 # ============================================================================
+# SSH — reverse of step 12 (feeds settings.sh)
+# ============================================================================
+
+_export_ssh() {
+    SSH_SYNCED_DIR_EXPORTED="" SSH_CONTROL_DIR_EXPORTED="" SSH_AGENT_EXPORTED=""
+    local link="$HOME/.ssh/config" dir cp
+
+    # ~/.ssh/config as a link into another folder: that folder is the synced one
+    if [[ -L "$link" ]]; then
+        dir=$(dirname "$(readlink -m "$link")")
+        SSH_SYNCED_DIR_EXPORTED=$(home_relative "$dir")
+    fi
+
+    # The directory the config's ControlPath points into (the first one set)
+    if [[ -f "$link" ]]; then
+        # Keywords are case-insensitive, usually indented under a Host, and
+        # take "ControlPath value" as well as "ControlPath=value"
+        cp=$(awk 'tolower($1) ~ /^controlpath(=|$)/ {
+                      sub(/^[ \t]*[^ \t=]+[ \t]*=?[ \t]*/, "")
+                      if (tolower($0) != "none") { print; exit } }' "$link")
+        cp="${cp%\"}"; cp="${cp#\"}"
+        if [[ -n "$cp" ]]; then
+            # ~/ and %d/ (ssh's token for the home directory) as written
+            # shellcheck disable=SC2088
+            [[ "$cp" == "~/"* ]] && cp="$HOME/${cp#\~/}"
+            [[ "$cp" == "%d/"* ]] && cp="$HOME/${cp#%d/}"
+            dir=$(dirname "$cp")
+            [[ "$dir" == /* ]] && SSH_CONTROL_DIR_EXPORTED=$(home_relative "$dir")
+        fi
+    fi
+
+    # Ours, or set up by hand in the session environment
+    if [[ -f "$SSH_AGENT_ENV_FILE" ]] && grep -qF "$BITWARDEN_SSH_SOCK" "$SSH_AGENT_ENV_FILE"; then
+        SSH_AGENT_EXPORTED="bitwarden"
+    elif systemctl --user show-environment 2>/dev/null | grep -qxF "SSH_AUTH_SOCK=$BITWARDEN_SSH_SOCK"; then
+        SSH_AGENT_EXPORTED="bitwarden"
+    fi
+
+    log_success "ssh: SSH_SYNCED_DIR=${SSH_SYNCED_DIR_EXPORTED:-<empty>}" \
+                "SSH_CONTROL_DIR=${SSH_CONTROL_DIR_EXPORTED:-<empty>}" \
+                "SSH_AGENT=${SSH_AGENT_EXPORTED:-<empty>}"
+}
+
+# ============================================================================
+# kiwi apps — reverse of step 13
+# ============================================================================
+
+_export_kiwi() {
+    local out="$EXPORT_DIR/kiwi-apps.list"
+    {
+        _hdr "kiwi apps to install with kiwi-updater" \
+             "Exported from $(hostname) on $(date -I)" \
+             "" \
+             "kiwi-updater itself is not listed: KIWI_INSTALL in settings.sh" \
+             "installs it."
+        echo ""
+    } > "$out"
+
+    # How kiwi-updater was installed, from what each mode leaves behind
+    KIWI_INSTALL_EXPORTED=""
+    if [[ -x /usr/local/libexec/kiwi-system-update ]]; then
+        KIWI_INSTALL_EXPORTED="recommended"
+    elif [[ -x /usr/local/bin/kiwi ]]; then
+        KIWI_INSTALL_EXPORTED="manual"
+    elif kiwi_cmd > /dev/null; then
+        KIWI_INSTALL_EXPORTED="minimal"
+    fi
+
+    local kiwi
+    if ! kiwi=$(kiwi_cmd); then
+        echo "# (kiwi-updater not installed on the exporting machine)" >> "$out"
+        log_info "kiwi-apps.list: kiwi-updater not installed"
+        return 0
+    fi
+
+    # Porcelain: name (1), status (4), pinned ref (14). Fields can be empty, so
+    # awk splits them rather than `read` (tab is IFS whitespace and collapses).
+    local n=0 name st pin
+    while IFS='|' read -r name st pin; do
+        [[ -z "$name" || "$name" == kiwi-updater ]] && continue
+        [[ "$st" == installed || "$st" == partial ]] || continue
+        if [[ -n "$pin" ]]; then
+            echo "$name   # pinned to $pin here — kiwi pin $name $pin" >> "$out"
+        else
+            echo "$name" >> "$out"
+        fi
+        n=$((n + 1))
+    done < <("$kiwi" list --porcelain --no-sync 2>/dev/null | awk -F'\t' '{print $1 "|" $4 "|" $14}')
+
+    [[ $n -eq 0 ]] && echo "# (no kiwi apps installed)" >> "$out"
+    log_success "kiwi-apps.list: $n app(s), KIWI_INSTALL=${KIWI_INSTALL_EXPORTED:-<empty>}"
+}
+
+# ============================================================================
 # settings.sh
 # ============================================================================
 
@@ -497,12 +591,21 @@ _export_settings() {
 # Ensconce — Personal configuration settings
 # Exported from $(hostname) on $(date -I)
 #
-# This file is sourced by ensconce.sh
+# This file is sourced by ensconce.sh. config.example/settings.sh explains
+# every setting.
 
 # Nextcloud server URL (leave empty to skip Nextcloud preseed)
 NEXTCLOUD_SERVER="${NEXTCLOUD_SERVER_EXPORTED:-}"
+
+# SSH (step: ssh) — paths relative to \$HOME, empty skips
+SSH_SYNCED_DIR="${SSH_SYNCED_DIR_EXPORTED:-}"
+SSH_CONTROL_DIR="${SSH_CONTROL_DIR_EXPORTED:-}"
+SSH_AGENT="${SSH_AGENT_EXPORTED:-}"            # bitwarden | gnome | empty
+
+# kiwi-updater (step: kiwi): recommended | manual | minimal | empty
+KIWI_INSTALL="${KIWI_INSTALL_EXPORTED:-}"
 SETTINGSEOF
-    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}"
+    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}, SSH and kiwi settings"
 }
 
 # ============================================================================
@@ -541,6 +644,8 @@ run_export() {
     _export_bookmarks
     _export_nextcloud
     _export_gdm
+    _export_ssh
+    _export_kiwi
     _export_settings
 
     echo ""

@@ -68,3 +68,12 @@ read_list_file() {
 generate_hex_id() {
     head -c 6 /dev/urandom | xxd -p
 }
+
+# kiwi-updater's CLI. The user-scope install is the one to drive (it reaches
+# the system scope itself, through its polkit-gated helper), and it lives in
+# ~/.local/bin, which is not on PATH in every shell this runs from.
+kiwi_cmd() {
+    local k="$HOME/.local/bin/kiwi"
+    [[ -x "$k" ]] || k=$(command -v kiwi 2>/dev/null) || return 1
+    echo "$k"
+}

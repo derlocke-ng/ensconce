@@ -75,6 +75,11 @@ step_nextcloud() {
             mkdir -p "$full_path"
             log_info "Created: ~/$local_path"
         fi
+        # A synced ssh config folder (SSH_SYNCED_DIR): mkdir -p would have
+        # made ~/.ssh world-readable, and ssh wants it private
+        if [[ "$local_path" == .ssh || "$local_path" == .ssh/* ]]; then
+            chmod 700 "$HOME/.ssh" "$full_path"
+        fi
     done
 
     # ── Generate nextcloud.cfg ──

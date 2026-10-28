@@ -4,7 +4,8 @@ Modular post-installation setup for [Bluefin-DX](https://projectbluefin.io/).
 
 Ensconce transforms a fresh Bluefin installation into your fully configured
 development workstation — custom packages, Flatpaks, GNOME extensions,
-Nextcloud sync, desktop settings, and more.
+Nextcloud sync, desktop settings, a synced SSH config with Bitwarden as the
+agent, kiwi apps, and more.
 
 ## Quick Start
 
@@ -63,7 +64,8 @@ ensconce --dry-run && ensconce
 | `gtk3-bookmarks` | `~/.config/gtk-3.0/bookmarks` |
 | `nextcloud/` | parsed back out of `nextcloud.cfg`, per-folder excludes become tags |
 | `gdm/` | `/etc/dconf/db/gdm.d/` + the greeter's display layout |
-| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config |
+| `kiwi-apps.list` | apps `kiwi list` shows as installed (pins kept as comments) |
+| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config; `SSH_SYNCED_DIR` from where `~/.ssh/config` links to, `SSH_CONTROL_DIR` from its `ControlPath`, `SSH_AGENT` from the session's `SSH_AUTH_SOCK`; `KIWI_INSTALL` from how kiwi-updater was installed |
 
 An export is a **starting point, not a finished config**. Three deliberate
 choices worth knowing about:
@@ -116,6 +118,7 @@ ensconce/
 │   ├── progress.sh         Checkpoint tracking & resume
 │   ├── inhibitor.sh        Prevent sleep during setup
 │   ├── export.sh           --export: capture this machine's setup
+│   ├── ssh.sh              SSH paths shared by the ssh step and --export
 │   └── preflight.sh        Pre-run validation checks
 ├── steps/                  Modular setup steps (NN-name.sh)
 │   ├── 01-rebase.sh        Switch to Bluefin-DX
@@ -128,9 +131,12 @@ ensconce/
 │   ├── 08-cacert.sh        Custom CA certificates
 │   ├── 09-nextcloud.sh     Preseed Nextcloud folder sync
 │   ├── 10-dconf.sh         GNOME desktop settings
-│   └── 11-gdm.sh           Login screen (GDM) settings
+│   ├── 11-gdm.sh           Login screen (GDM) settings
+│   ├── 12-ssh.sh           Synced SSH config, Bitwarden as the SSH agent
+│   └── 13-kiwi.sh          kiwi-updater and kiwi apps
 ├── config/                 Your personal configuration (gitignored)
 ├── config.example/         Template configuration (committed)
+├── tests/                  check-version.sh (release gate), steps.sh
 └── dconf-backup.sh         Utility: export current dconf settings
 ```
 
@@ -153,7 +159,7 @@ Then edit:
 
 | File / Directory | Purpose |
 |---|---|
-| `config/settings.sh` | Server URLs, feature toggles |
+| `config/settings.sh` | Server URLs, SSH, kiwi-updater, feature toggles |
 | `config/packages.list` | RPM packages to layer (one per line) |
 | `config/flatpaks.list` | Flatpak app IDs (one per line) |
 | `config/extensions.list` | GNOME extension UUIDs (one per line) |
@@ -167,6 +173,7 @@ Then edit:
 | `config/gtk3-bookmarks` | Nautilus sidebar bookmarks |
 | `config/gdm/dconf.d/` | Login screen settings, installed to `/etc/dconf/db/gdm.d/` |
 | `config/gdm/monitors.xml` | Login screen display layout (optional) |
+| `config/kiwi-apps.list` | kiwi apps to install (one name per line) |
 
 ### List file format
 
@@ -216,6 +223,64 @@ resolution and *fractional* scale. If it is missing, mutter picks a scale on
 its own, which is where a stray 125% login screen comes from. Leave the file
 out and the step offers to copy your own `~/.config/monitors.xml`, which makes
 the greeter match your desktop exactly.
+
+### SSH: one config everywhere, keys in Bitwarden
+
+Three settings in `settings.sh`, each skipped when empty:
+
+```bash
+SSH_SYNCED_DIR=".ssh/.sshsynched"      # a folder Nextcloud syncs, holding `config`
+SSH_CONTROL_DIR=".ssh/control_sockets" # where the config's ControlPath points
+SSH_AGENT="bitwarden"                  # bitwarden | gnome | empty
+```
+
+with the folder listed in `nextcloud/folders.list` (`.ssh/.sshsynched|/ssh`).
+That gives every machine this layout:
+
+```
+~/.ssh/
+├── .sshsynched/          synced by Nextcloud: config (and anything else shared)
+├── config -> .sshsynched/config
+├── control_sockets/      local: sockets cannot be synced
+└── known_hosts           local to each machine
+```
+
+- **The link is relative**, so it means the same on a machine with another
+  user name or home directory. An existing absolute link to the same file is
+  rewritten as a relative one.
+- **An existing `~/.ssh/config`** is never lost. If the synced folder already
+  has one, the local file is kept as `config.ensconce-<date>`. If it does not,
+  ensconce offers to move yours into it, so it becomes the one that syncs.
+- **Permissions:** `~/.ssh` and both directories are `0700`, and the synced
+  config is `0600`. ssh refuses a config others can write.
+- **Before Nextcloud has synced**, the link points at nothing yet and ssh
+  simply runs without a config.
+
+**`SSH_AGENT=bitwarden`** makes the Bitwarden Flatpak's built-in agent the
+session's `SSH_AUTH_SOCK`. Your keys stay in the vault, and Bitwarden asks
+before each use. The Flatpak listens on
+`~/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock`. Ensconce
+writes that to `~/.config/environment.d/90-ensconce-ssh-agent.conf`, which the
+whole desktop session reads. It also masks GNOME's `gcr-ssh-agent.socket`:
+GNOME 46 and later starts it in every session, and it sets `SSH_AUTH_SOCK`
+back to itself. Two things are left to you, in Bitwarden's settings: **Enable
+SSH agent**, and **Start automatically on login**. Then log out and back in.
+`SSH_AGENT=gnome` undoes all of it.
+
+### kiwi apps
+
+`KIWI_INSTALL` installs [kiwi-updater](https://github.com/derlocke-ng/kiwi-updater)
+if it is missing, through its own `get-kiwi.sh`:
+
+| `KIWI_INSTALL` | Installs |
+|---|---|
+| `recommended` | user + system scope: one password now, passwordless updates after |
+| `manual` | the same, but every system change asks for your password |
+| `minimal` | user scope only, never root (enough for user-only apps) |
+
+Then it installs every app in `kiwi-apps.list` that is not installed yet.
+Put `ensconce` itself in that list, and a copy run from a clone hands over to a
+kiwi-managed one that kiwi keeps updated.
 
 ### Flatpak overrides
 

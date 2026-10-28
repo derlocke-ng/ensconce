@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-ENSCONCE_VERSION="2.1.1"
+ENSCONCE_VERSION="2.2.0"
 
 # Resolve through symlinks: an installed copy lives in <prefix>/share/ensconce
 # with <prefix>/bin/ensconce pointing at it, and lib/ + steps/ have to be found
@@ -199,7 +199,7 @@ init_config() {
     log_success "Created $dst from config.example/"
     echo ""
     log_info "Edit these files to customize your setup:"
-    echo "  config/settings.sh              Main settings (server URLs, feature toggles)"
+    echo "  config/settings.sh              Main settings (server URLs, SSH, kiwi, feature toggles)"
     echo "  config/packages.list            RPM packages to layer"
     echo "  config/flatpaks.list            Flatpak applications"
     echo "  config/extensions.list          GNOME Shell extensions"
@@ -212,6 +212,7 @@ init_config() {
     echo "  config/gtk3-bookmarks           Nautilus sidebar bookmarks"
     echo "  config/gdm/dconf.d/             Login screen settings (applied as root)"
     echo "  config/gdm/monitors.xml         Login screen display layout (optional)"
+    echo "  config/kiwi-apps.list           kiwi apps to install with kiwi-updater"
 }
 
 # ============================================================================
@@ -534,6 +535,9 @@ main() {
     fi
     if is_step_done "nextcloud"; then
         log_info "Don't forget to log in to Nextcloud to activate folder syncs!"
+    fi
+    if is_step_done "ssh" && [[ "${SSH_AGENT:-}" == "bitwarden" ]]; then
+        log_info "Turn on Bitwarden's SSH agent (Settings → Enable SSH agent), then log out and in"
     fi
 
     log_info "After reboot, you may need to log out/in for extensions to activate"
