@@ -272,6 +272,28 @@ _export_certs() {
 }
 
 # ============================================================================
+# sysctl drop-ins — only files no package owns
+# ============================================================================
+
+_export_sysctl() {
+    local dst="$EXPORT_DIR/sysctl.d"
+    mkdir -p "$dst"
+
+    local n=0 owned=0 f
+    for f in /etc/sysctl.d/*.conf; do
+        [[ -f "$f" ]] || continue
+        if command -v rpm &> /dev/null && rpm -qf "$f" &> /dev/null; then
+            owned=$((owned + 1))
+            continue
+        fi
+        cp "$f" "$dst/" 2>/dev/null && n=$((n + 1))
+    done
+
+    [[ $n -eq 0 ]] && touch "$dst/.gitkeep"
+    log_success "sysctl.d/: $n drop-in(s) ($owned from packages skipped)"
+}
+
+# ============================================================================
 # dconf — curated subtrees, reassembled into one loadable file
 # ============================================================================
 
@@ -640,6 +662,7 @@ run_export() {
     _export_overrides
     _export_repos
     _export_certs
+    _export_sysctl
     _export_dconf
     _export_bookmarks
     _export_nextcloud

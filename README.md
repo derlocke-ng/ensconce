@@ -60,6 +60,7 @@ ensconce --dry-run && ensconce
 | `flatpak-overrides/` | `~/.local/share/flatpak/overrides/` (minus `global`) |
 | `repos.d/` | `/etc/yum.repos.d/` minus RPM-owned and Bluefin-provided files |
 | `certs/` | `/etc/pki/ca-trust/source/anchors/` |
+| `sysctl.d/` | `/etc/sysctl.d/*.conf` minus RPM-owned files |
 | `dconf-settings.ini` | curated dconf subtrees, not a full `dconf dump /` |
 | `gtk3-bookmarks` | `~/.config/gtk-3.0/bookmarks` |
 | `nextcloud/` | parsed back out of `nextcloud.cfg`, per-folder excludes become tags |
@@ -133,7 +134,8 @@ ensconce/
 │   ├── 10-dconf.sh         GNOME desktop settings
 │   ├── 11-gdm.sh           Login screen (GDM) settings
 │   ├── 12-ssh.sh           Synced SSH config, Bitwarden as the SSH agent
-│   └── 13-kiwi.sh          kiwi-updater and kiwi apps
+│   ├── 13-kiwi.sh          kiwi-updater and kiwi apps
+│   └── 14-sysctl.sh        Kernel tunables (sysctl.d drop-ins)
 ├── config/                 Your personal configuration (gitignored)
 ├── config.example/         Template configuration (committed)
 ├── tests/                  check-version.sh (release gate), steps.sh
@@ -169,6 +171,7 @@ Then edit:
 | `config/nextcloud/exclude.lst` | Global sync exclusion rules |
 | `config/nextcloud/exclude.d/` | Per-folder exclusions via tags |
 | `config/certs/` | CA certificates (`.pem` files) |
+| `config/sysctl.d/` | Kernel tunables (`.conf` files) installed to `/etc/sysctl.d/` |
 | `config/dconf-settings.ini` | GNOME desktop settings |
 | `config/gtk3-bookmarks` | Nautilus sidebar bookmarks |
 | `config/gdm/dconf.d/` | Login screen settings, installed to `/etc/dconf/db/gdm.d/` |
@@ -281,6 +284,25 @@ if it is missing, through its own `get-kiwi.sh`:
 Then it installs every app in `kiwi-apps.list` that is not installed yet.
 Put `ensconce` itself in that list, and a copy run from a clone hands over to a
 kiwi-managed one that kiwi keeps updated.
+
+### Kernel tunables (sysctl)
+
+Every `.conf` file in `config/sysctl.d/` is installed to `/etc/sysctl.d/`
+and applied right away with `sysctl --system`, so it also holds after a
+reboot. Files that are already installed unchanged are left alone.
+
+The example ships `99-dirty-writeback.conf`, a fix for desktops that freeze
+during big writes on a slow SSD:
+
+```ini
+# start background writeback at 256 MiB, throttle writers at 1 GiB
+vm.dirty_background_bytes = 268435456
+vm.dirty_bytes = 1073741824
+```
+
+By default the kernel lets 10–20% of RAM fill with unwritten data before
+it flushes. With a lot of RAM that is several GB, and a slow SSD stalls
+everything while it writes them out. Delete the file if your disk keeps up.
 
 ### Flatpak overrides
 

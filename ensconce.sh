@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-ENSCONCE_VERSION="2.2.0"
+ENSCONCE_VERSION="2.3.0"
 
 # Resolve through symlinks: an installed copy lives in <prefix>/share/ensconce
 # with <prefix>/bin/ensconce pointing at it, and lib/ + steps/ have to be found
@@ -208,6 +208,7 @@ init_config() {
     echo "  config/nextcloud/folders.list   Nextcloud sync folders"
     echo "  config/nextcloud/exclude.lst    Sync exclusion rules"
     echo "  config/certs/                   CA certificates (.pem)"
+    echo "  config/sysctl.d/                Kernel tunables, installed to /etc/sysctl.d/"
     echo "  config/dconf-settings.ini       GNOME desktop settings"
     echo "  config/gtk3-bookmarks           Nautilus sidebar bookmarks"
     echo "  config/gdm/dconf.d/             Login screen settings (applied as root)"
