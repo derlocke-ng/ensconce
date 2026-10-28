@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# tests/steps.sh — the ssh and kiwi steps and their --export, run against a
-# throwaway $HOME with stub systemctl, flatpak, ssh-add, curl and kiwi on PATH.
+# tests/steps.sh — the ssh, kiwi and sysctl steps and their --export, run against a
+# throwaway $HOME with stub systemctl, flatpak, ssh-add, curl, sudo and kiwi
+# on PATH.
 # Nothing outside the temporary directory is read or written.
 #
 #   bash tests/steps.sh
@@ -46,6 +47,9 @@ exit 0
 EOF
 
 printf '#!/usr/bin/env bash\nexit 2\n' > "$STUB/ssh-add"
+
+# sudo only records what it was asked to do
+printf '#!/usr/bin/env bash\necho "sudo $*" >> "$CALLS"\n' > "$STUB/sudo"
 
 # kiwi's porcelain list: tab-separated, fields 8-10 and 12 empty on purpose.
 # Not on PATH: kiwi counts as installed only once get-kiwi.sh (or a test)
@@ -274,6 +278,29 @@ check "dry run: shows the apps"             out_has "Would run: kiwi install ens
 fresh_home; setting KIWI_INSTALL sometimes
 run_step kiwi < /dev/null
 check "unknown KIWI_INSTALL: fails"         [ "$rc" = 1 ]
+
+echo "== sysctl step"
+
+fresh_home
+run_step sysctl < /dev/null
+check "no drop-ins: skipped"                out_has 'No sysctl drop-ins'
+
+fresh_home; mkdir -p "$WORK/cfg/sysctl.d"
+cp "$ROOT/config.example/sysctl.d/99-dirty-writeback.conf" "$WORK/cfg/sysctl.d/"
+run_step sysctl < /dev/null
+check "drop-in: succeeds"                   [ "$rc" = 0 ]
+check "drop-in: installed to /etc/sysctl.d" \
+      calls_has "sudo install -m 0644 $WORK/cfg/sysctl.d/99-dirty-writeback.conf /etc/sysctl.d/99-dirty-writeback.conf"
+check "drop-in: applied"                    calls_has "sudo sysctl --system"
+check "drop-in: shows the settings"         out_has 'vm.dirty_bytes = 1073741824'
+
+rm -f "$CALLS"; run_step sysctl <<< "n"
+check "declined: not a failure"             [ "$rc" = 0 ]
+check "declined: nothing installed"         [ ! -s "$CALLS" ]
+
+rm -f "$CALLS"; DRY=true run_step sysctl < /dev/null
+check "dry run: nothing installed"          [ ! -s "$CALLS" ]
+check "dry run: shows the apply"            out_has 'Would run: sudo sysctl --system'
 
 echo "== export"
 
