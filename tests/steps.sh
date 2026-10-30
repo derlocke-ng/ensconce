@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# tests/steps.sh — the ssh, kiwi and sysctl steps and their --export, run against a
-# throwaway $HOME with stub systemctl, flatpak, ssh-add, curl, sudo and kiwi
-# on PATH.
+# tests/steps.sh — the ssh, kiwi and sysctl steps, the flatpaks step's
+# languages, and their --export, run against a throwaway $HOME with stub
+# systemctl, flatpak, ssh-add, curl, sudo and kiwi on PATH.
 # Nothing outside the temporary directory is read or written.
 #
 #   bash tests/steps.sh
@@ -40,9 +40,19 @@ case $1 in
 esac
 EOF
 
+# Keeps each installation's languages in $FAKE_FLATPAK/<scope>; the system
+# installation has one app installed, the user installation none
+export FAKE_FLATPAK="$WORK/flatpak"
 cat > "$STUB/flatpak" << 'EOF'
 #!/usr/bin/env bash
 [[ $1 == info ]] && exit "${FAKE_BW_MISSING:-0}"
+echo "flatpak $*" >> "$CALLS"
+scope=${2#--}
+case $1 in
+    config) if [[ $3 == --get ]]; then cat "$FAKE_FLATPAK/$scope" 2>/dev/null || echo '*unset*'
+            else mkdir -p "$FAKE_FLATPAK"; echo "$5" > "$FAKE_FLATPAK/$scope"; fi ;;
+    list)   [[ $scope == system ]] && echo org.gnome.Epiphany ;;
+esac
 exit 0
 EOF
 
@@ -87,7 +97,7 @@ export STUB KIWI_STUB
 
 # ── harness ─────────────────────────────────────────────────────────────────
 fresh_home() {
-    rm -rf "${WORK:?}/home" "${WORK:?}/cfg" "$CALLS" "$FAKE_ENV"
+    rm -rf "${WORK:?}/home" "${WORK:?}/cfg" "$CALLS" "$FAKE_ENV" "$FAKE_FLATPAK"
     mkdir -p "$WORK/home" "$WORK/cfg/nextcloud"
     export HOME="$WORK/home" XDG_CONFIG_HOME="$WORK/home/.config"
     : > "$WORK/cfg/settings.sh"
@@ -279,6 +289,37 @@ fresh_home; setting KIWI_INSTALL sometimes
 run_step kiwi < /dev/null
 check "unknown KIWI_INSTALL: fails"         [ "$rc" = 1 ]
 
+echo "== flatpaks step: languages"
+
+fresh_home
+run_step flatpaks < /dev/null
+check "no FLATPAK_LANGUAGES: left alone"    bash -c "! grep -q 'flatpak config' '$CALLS' 2>/dev/null"
+
+fresh_home; setting FLATPAK_LANGUAGES "en;de"
+run_step flatpaks < /dev/null
+check "languages: succeeds"                 [ "$rc" = 0 ]
+check "languages: system set"               calls_has "flatpak config --system --set languages en;de"
+check "languages: user set"                 calls_has "flatpak config --user --set languages en;de"
+check "languages: installed apps updated"   calls_has "flatpak update --system -y --noninteractive"
+check "languages: empty scope not updated"  bash -c "! grep -q 'update --user' '$CALLS'"
+
+rm -f "$CALLS"; run_step flatpaks < /dev/null
+check "languages rerun: nothing set"        bash -c "! grep -q -- '--set' '$CALLS'"
+check "languages rerun: no update"          bash -c "! grep -q 'flatpak update' '$CALLS'"
+
+fresh_home; setting FLATPAK_LANGUAGES "*"
+run_step flatpaks < /dev/null
+check "languages '*': set as *all*"         calls_has "flatpak config --system --set languages *all*"
+
+fresh_home; setting FLATPAK_LANGUAGES "en;de"
+run_step flatpaks <<< "n"
+check "languages declined: nothing set"     bash -c "! grep -q -- '--set' '$CALLS'"
+
+fresh_home; setting FLATPAK_LANGUAGES "en;de"
+DRY=true run_step flatpaks < /dev/null
+check "languages dry run: nothing stored"   [ ! -e "$FAKE_FLATPAK" ]
+check "languages dry run: shows the update" out_has "Would run: flatpak update --system"
+
 echo "== sysctl step"
 
 fresh_home
@@ -334,6 +375,10 @@ fresh_home
 mkdir -p "$HOME/.ssh"; printf '%s\n' "Host *" "	ControlPath %d/.ssh/cm/%C" > "$HOME/.ssh/config"
 run_export _export_ssh _export_settings
 check "export: %d in ControlPath is home"   grep -qx 'SSH_CONTROL_DIR=".ssh/cm"' "$WORK/export/settings.sh"
+
+fresh_home; mkdir -p "$FAKE_FLATPAK"; echo "en;de" > "$FAKE_FLATPAK/user"
+run_export _export_flatpaks _export_settings
+check "export: FLATPAK_LANGUAGES"           grep -qx 'FLATPAK_LANGUAGES="en;de"' "$WORK/export/settings.sh"
 
 echo
 if [[ $fails -gt 0 ]]; then

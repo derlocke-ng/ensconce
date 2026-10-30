@@ -66,7 +66,7 @@ ensconce --dry-run && ensconce
 | `nextcloud/` | parsed back out of `nextcloud.cfg`, per-folder excludes become tags |
 | `gdm/` | `/etc/dconf/db/gdm.d/` + the greeter's display layout |
 | `kiwi-apps.list` | apps `kiwi list` shows as installed (pins kept as comments) |
-| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config; `SSH_SYNCED_DIR` from where `~/.ssh/config` links to, `SSH_CONTROL_DIR` from its `ControlPath`, `SSH_AGENT` from the session's `SSH_AUTH_SOCK`; `KIWI_INSTALL` from how kiwi-updater was installed |
+| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config; `FLATPAK_LANGUAGES` from `flatpak config` (system, else user); `SSH_SYNCED_DIR` from where `~/.ssh/config` links to, `SSH_CONTROL_DIR` from its `ControlPath`, `SSH_AGENT` from the session's `SSH_AUTH_SOCK`; `KIWI_INSTALL` from how kiwi-updater was installed |
 
 An export is a **starting point, not a finished config**. Three deliberate
 choices worth knowing about:
@@ -284,6 +284,25 @@ if it is missing, through its own `get-kiwi.sh`:
 Then it installs every app in `kiwi-apps.list` that is not installed yet.
 Put `ensconce` itself in that list, and a copy run from a clone hands over to a
 kiwi-managed one that kiwi keeps updated.
+
+### Flatpak languages
+
+Flatpak apps get their translations and locale data (the part behind date and
+number formats) from separate *Locale* extensions, and Flatpak only installs
+them for the languages it thinks you use. By default that is the language
+you run in. So with an English desktop and German formats, `de` is missing
+and apps such as Epiphany can't show German dates. Set the list yourself in
+`settings.sh`:
+
+```bash
+FLATPAK_LANGUAGES="en;de"    # ";"-separated, or "*" for all
+```
+
+The flatpaks step writes it with `flatpak config --set languages` for both
+the system and the user installation, since each keeps its own list. Then it
+runs `flatpak update` for any installation that already has apps, which
+fetches the new languages. That update also updates the apps themselves.
+Leave it empty to keep Flatpak's own choice.
 
 ### Kernel tunables (sysctl)
 
