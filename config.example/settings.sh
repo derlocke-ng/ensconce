@@ -9,6 +9,15 @@
 # Nextcloud server URL (leave empty to skip Nextcloud preseed step)
 NEXTCLOUD_SERVER=""
 
+# ── Flatpak languages (step: flatpaks) ──────────────────────────────────────
+# Languages to install Flatpak translations and locale data for, separated by
+# ";" (e.g. "en;de"), or "*" for all. Flatpak's default only follows the
+# language you run in, so English with German date and number formats leaves
+# apps such as Epiphany without "de". Applies to the system and the user
+# installation and updates installed apps to fetch the new languages.
+# Empty leaves Flatpak's setting as it is.
+FLATPAK_LANGUAGES=""         # e.g. "en;de"
+
 # ── SSH (step: ssh) ─────────────────────────────────────────────────────────
 # Each setting is skipped when empty. Paths are relative to $HOME.
 

@@ -105,6 +105,18 @@ _export_flatpaks() {
     done < <(flatpak list --app --columns=application,origin 2>/dev/null)
 
     log_success "flatpaks.list: $n from flathub$([[ $other -gt 0 ]] && echo ", $other commented out")"
+
+    # The system installation is the one the flatpaks step installs into;
+    # the user one is where `flatpak config --user` put it
+    local scope langs
+    FLATPAK_LANGUAGES_EXPORTED=""
+    for scope in system user; do
+        langs=$(flatpak config "--$scope" --get languages 2>/dev/null)
+        if [[ -n "$langs" && "$langs" != "*unset*" ]]; then
+            FLATPAK_LANGUAGES_EXPORTED="$langs"
+            break
+        fi
+    done
 }
 
 # ============================================================================
@@ -619,6 +631,9 @@ _export_settings() {
 # Nextcloud server URL (leave empty to skip Nextcloud preseed)
 NEXTCLOUD_SERVER="${NEXTCLOUD_SERVER_EXPORTED:-}"
 
+# Flatpak languages (step: flatpaks), e.g. "en;de" — empty leaves them alone
+FLATPAK_LANGUAGES="${FLATPAK_LANGUAGES_EXPORTED:-}"
+
 # SSH (step: ssh) — paths relative to \$HOME, empty skips
 SSH_SYNCED_DIR="${SSH_SYNCED_DIR_EXPORTED:-}"
 SSH_CONTROL_DIR="${SSH_CONTROL_DIR_EXPORTED:-}"
@@ -627,7 +642,7 @@ SSH_AGENT="${SSH_AGENT_EXPORTED:-}"            # bitwarden | gnome | empty
 # kiwi-updater (step: kiwi): recommended | manual | minimal | empty
 KIWI_INSTALL="${KIWI_INSTALL_EXPORTED:-}"
 SETTINGSEOF
-    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}, SSH and kiwi settings"
+    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}, Flatpak languages, SSH and kiwi settings"
 }
 
 # ============================================================================
