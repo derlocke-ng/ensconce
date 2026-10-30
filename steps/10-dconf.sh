@@ -28,6 +28,11 @@ step_dconf() {
 
     log_info "Applying dconf settings..."
     run_cmd dconf load / < "$dconf_file"
+    # The run forces some idle/suspend keys and puts them back on exit; the
+    # ones this file sets are the user's now and have to stay
+    if [[ "$DRY_RUN" != "true" ]]; then
+        idle_settings_keep_from_ini "$dconf_file"
+    fi
 
     log_success "dconf settings applied"
 

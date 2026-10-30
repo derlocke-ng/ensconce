@@ -634,6 +634,9 @@ NEXTCLOUD_SERVER="${NEXTCLOUD_SERVER_EXPORTED:-}"
 # Flatpak languages (step: flatpaks), e.g. "en;de" — empty leaves them alone
 FLATPAK_LANGUAGES="${FLATPAK_LANGUAGES_EXPORTED:-}"
 
+# Sleep (step: power): off | on | empty
+SYSTEM_SLEEP="$([[ "$(systemctl is-enabled suspend.target 2>/dev/null)" == masked ]] && echo off)"
+
 # SSH (step: ssh) — paths relative to \$HOME, empty skips
 SSH_SYNCED_DIR="${SSH_SYNCED_DIR_EXPORTED:-}"
 SSH_CONTROL_DIR="${SSH_CONTROL_DIR_EXPORTED:-}"
@@ -642,7 +645,7 @@ SSH_AGENT="${SSH_AGENT_EXPORTED:-}"            # bitwarden | gnome | empty
 # kiwi-updater (step: kiwi): recommended | manual | minimal | empty
 KIWI_INSTALL="${KIWI_INSTALL_EXPORTED:-}"
 SETTINGSEOF
-    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}, Flatpak languages, SSH and kiwi settings"
+    log_success "settings.sh: NEXTCLOUD_SERVER=${NEXTCLOUD_SERVER_EXPORTED:-<empty>}, Flatpak languages, sleep, SSH and kiwi settings"
 }
 
 # ============================================================================
