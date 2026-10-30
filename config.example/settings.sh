@@ -18,6 +18,15 @@ NEXTCLOUD_SERVER=""
 # Empty leaves Flatpak's setting as it is.
 FLATPAK_LANGUAGES=""         # e.g. "en;de"
 
+# ── Sleep (step: power) ─────────────────────────────────────────────────────
+#   off    no suspend, hibernation or sleep on lid close: masks the systemd
+#          sleep targets, makes logind ignore the lid and the suspend keys,
+#          and turns off GNOME's suspend when idle. For machines where
+#          waking up is broken
+#   on     undoes "off" (GNOME's idle suspend stays as dconf has it)
+#   (empty) leave sleep as it is
+SYSTEM_SLEEP=""
+
 # ── SSH (step: ssh) ─────────────────────────────────────────────────────────
 # Each setting is skipped when empty. Paths are relative to $HOME.
 

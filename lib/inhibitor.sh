@@ -136,6 +136,41 @@ _restore_idle_settings() {
     IDLE_BACKUP_FILE=""
 }
 
+# A step that sets one of the forced keys on purpose claims it here: the
+# value becomes what the restore puts back. Without this, a step setting the
+# very value forced for the run (sleep-inactive-ac-type='nothing') would look
+# untouched and get reverted when ensconce exits.
+idle_settings_keep() {
+    local path="$1" value="$2"
+    [[ -n "$IDLE_BACKUP_FILE" && -f "$IDLE_BACKUP_FILE" ]] || return 0
+
+    awk -F'\t' -v OFS='\t' -v p="$path" -v v="$value" '$1 == p { $3 = v } 1' \
+        "$IDLE_BACKUP_FILE" > "$IDLE_BACKUP_FILE.tmp" \
+        && mv "$IDLE_BACKUP_FILE.tmp" "$IDLE_BACKUP_FILE"
+}
+
+# The same for every forced key a `dconf load` file sets
+idle_settings_keep_from_ini() {
+    local ini="$1"
+    [[ -n "$IDLE_BACKUP_FILE" && -f "$IDLE_BACKUP_FILE" ]] || return 0
+
+    local paths=() path dir key value
+    while IFS=$'\t' read -r path _; do
+        [[ -n "$path" ]] && paths+=("$path")
+    done < "$IDLE_BACKUP_FILE"
+
+    for path in "${paths[@]}"; do
+        dir="${path%/*}"; dir="${dir#/}"; key="${path##*/}"
+        value=$(awk -v sec="[$dir]" -v key="$key" '
+            /^\[/                             { in_sec = ($0 == sec); next }
+            in_sec && index($0, key "=") == 1 { v = substr($0, length(key) + 2) }
+            END                               { if (v != "") print v }
+        ' "$ini")
+        [[ -n "$value" ]] && idle_settings_keep "$path" "$value"
+    done
+    return 0
+}
+
 # ============================================================================
 # Public interface
 # ============================================================================

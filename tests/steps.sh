@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# tests/steps.sh — the ssh, kiwi and sysctl steps, the flatpaks step's
-# languages, and their --export, run against a throwaway $HOME with stub
-# systemctl, flatpak, ssh-add, curl, sudo and kiwi on PATH.
+# tests/steps.sh — the ssh, kiwi, sysctl and power steps, the flatpaks step's
+# languages, the dconf restore after a run, and their --export, run against a
+# throwaway $HOME with stub systemctl, flatpak, dconf, ssh-add, curl, sudo and
+# kiwi on PATH.
 # Nothing outside the temporary directory is read or written.
 #
 #   bash tests/steps.sh
@@ -32,6 +33,7 @@ units="$XDG_CONFIG_HOME/systemd/user"
 case $1 in
     show-environment) cat "$FAKE_ENV" 2>/dev/null; exit 0 ;;
     cat)              [[ ${FAKE_GCR:-1} == 1 ]] ;;
+    is-enabled)       if [[ ${FAKE_MASKED:-0} == 1 ]]; then echo masked; else echo static; fi ;;
     mask)             shift; [[ $1 == --now ]] && shift
                       mkdir -p "$units"; ln -sfn /dev/null "$units/$1" ;;
     unmask)           rm -f "$units/$2" ;;
@@ -57,6 +59,20 @@ exit 0
 EOF
 
 printf '#!/usr/bin/env bash\nexit 2\n' > "$STUB/ssh-add"
+
+# dconf keeps each key in a file under $FAKE_DCONF, named after its path
+export FAKE_DCONF="$WORK/dconf"
+cat > "$STUB/dconf" << 'EOF'
+#!/usr/bin/env bash
+echo "dconf $*" >> "$CALLS"
+f="$FAKE_DCONF/${2//\//_}"
+case $1 in
+    read)  cat "$f" 2>/dev/null ;;
+    write) mkdir -p "$FAKE_DCONF"; echo "$3" > "$f" ;;
+    reset) rm -f "$f" ;;
+esac
+exit 0
+EOF
 
 # sudo only records what it was asked to do
 printf '#!/usr/bin/env bash\necho "sudo $*" >> "$CALLS"\n' > "$STUB/sudo"
@@ -97,7 +113,7 @@ export STUB KIWI_STUB
 
 # ── harness ─────────────────────────────────────────────────────────────────
 fresh_home() {
-    rm -rf "${WORK:?}/home" "${WORK:?}/cfg" "$CALLS" "$FAKE_ENV" "$FAKE_FLATPAK"
+    rm -rf "${WORK:?}/home" "${WORK:?}/cfg" "$CALLS" "$FAKE_ENV" "$FAKE_FLATPAK" "$FAKE_DCONF" "$WORK/state"
     mkdir -p "$WORK/home" "$WORK/cfg/nextcloud"
     export HOME="$WORK/home" XDG_CONFIG_HOME="$WORK/home/.config"
     : > "$WORK/cfg/settings.sh"
@@ -343,6 +359,74 @@ rm -f "$CALLS"; DRY=true run_step sysctl < /dev/null
 check "dry run: nothing installed"          [ ! -s "$CALLS" ]
 check "dry run: shows the apply"            out_has 'Would run: sudo sysctl --system'
 
+echo "== power step"
+
+fresh_home
+run_step power < /dev/null
+check "no SYSTEM_SLEEP: left alone"         bash -c "! grep -q '^sudo' '$CALLS' 2>/dev/null"
+
+fresh_home; setting SYSTEM_SLEEP off
+run_step power < /dev/null
+check "off: succeeds"                       [ "$rc" = 0 ]
+check "off: targets masked" calls_has "sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target"
+check "off: logind drop-in installed"       grep -q "^sudo install -m 0644 .* /etc/systemd/logind.conf.d/90-ensconce-no-sleep.conf$" "$CALLS"
+check "off: logind reloaded, not restarted" calls_has "sudo systemctl kill -s HUP systemd-logind"
+check "off: no session, dconf left alone"   bash -c "! grep -q '^dconf' '$CALLS'"
+
+fresh_home; setting SYSTEM_SLEEP off
+DBUS_SESSION_BUS_ADDRESS=fake run_step power < /dev/null
+check "off: GNOME idle suspend on AC off"   grep -qx "'nothing'" "$FAKE_DCONF/_org_gnome_settings-daemon_plugins_power_sleep-inactive-ac-type"
+
+fresh_home; setting SYSTEM_SLEEP off
+FAKE_MASKED=1 run_step power < /dev/null
+check "off, already masked: no re-mask"     bash -c "! grep -q 'systemctl mask' '$CALLS'"
+check "off, already masked: drop-in still"  grep -q "^sudo install .*90-ensconce-no-sleep.conf$" "$CALLS"
+
+fresh_home; setting SYSTEM_SLEEP off
+run_step power <<< "n"
+check "off declined: nothing done"          bash -c "! grep -q '^sudo' '$CALLS' 2>/dev/null"
+
+fresh_home; setting SYSTEM_SLEEP off
+DRY=true run_step power < /dev/null
+check "off dry run: nothing done"           bash -c "! grep -q '^sudo' '$CALLS' 2>/dev/null"
+check "off dry run: shows the mask"         out_has "Would run: sudo systemctl mask"
+
+fresh_home; setting SYSTEM_SLEEP on
+FAKE_MASKED=1 run_step power < /dev/null
+check "on: succeeds"                        [ "$rc" = 0 ]
+check "on: targets unmasked" calls_has "sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target"
+
+fresh_home; setting SYSTEM_SLEEP on
+run_step power < /dev/null
+check "on, nothing masked: nothing done"    out_has "already on"
+
+fresh_home; setting SYSTEM_SLEEP never
+run_step power < /dev/null
+check "unknown SYSTEM_SLEEP: fails"         [ "$rc" = 1 ]
+
+echo "== idle settings: restore after the run"
+
+# The run forces the idle keys and restores them on exit, except those a
+# step claimed — even when the step's value equals the forced one
+fresh_home
+mkdir -p "$FAKE_DCONF"
+echo "'suspend'" > "$FAKE_DCONF/_org_gnome_settings-daemon_plugins_power_sleep-inactive-ac-type"
+echo "uint32 300" > "$FAKE_DCONF/_org_gnome_desktop_session_idle-delay"
+printf '%s\n' "[org/gnome/settings-daemon/plugins/power]" "sleep-inactive-ac-type='nothing'" \
+    "" "[org/gnome/desktop/interface]" "clock-format='24h'" > "$WORK/cfg/dconf-settings.ini"
+(
+    set -euo pipefail
+    PATH="$STUB:$PATH" DBUS_SESSION_BUS_ADDRESS=fake STATE_DIR="$WORK/state"
+    for l in "$ROOT"/lib/*.sh; do source "$l"; done
+    mkdir -p "$STATE_DIR"
+    _force_idle_settings
+    idle_settings_keep_from_ini "$WORK/cfg/dconf-settings.ini"
+    _restore_idle_settings
+) > "$WORK/out" 2>&1
+check "restore: key set by the ini kept"    grep -qx "'nothing'" "$FAKE_DCONF/_org_gnome_settings-daemon_plugins_power_sleep-inactive-ac-type"
+check "restore: other keys put back"        grep -qx "uint32 300" "$FAKE_DCONF/_org_gnome_desktop_session_idle-delay"
+check "restore: unset keys reset"           [ ! -e "$FAKE_DCONF/_org_gnome_desktop_screensaver_lock-enabled" ]
+
 echo "== export"
 
 fresh_home; ssh_settings
@@ -379,6 +463,12 @@ check "export: %d in ControlPath is home"   grep -qx 'SSH_CONTROL_DIR=".ssh/cm"'
 fresh_home; mkdir -p "$FAKE_FLATPAK"; echo "en;de" > "$FAKE_FLATPAK/user"
 run_export _export_flatpaks _export_settings
 check "export: FLATPAK_LANGUAGES"           grep -qx 'FLATPAK_LANGUAGES="en;de"' "$WORK/export/settings.sh"
+
+fresh_home
+FAKE_MASKED=1 run_export _export_settings
+check "export: SYSTEM_SLEEP=off when masked" grep -qx 'SYSTEM_SLEEP="off"' "$WORK/export/settings.sh"
+run_export _export_settings
+check "export: SYSTEM_SLEEP empty otherwise" grep -qx 'SYSTEM_SLEEP=""' "$WORK/export/settings.sh"
 
 echo
 if [[ $fails -gt 0 ]]; then

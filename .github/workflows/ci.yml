@@ -10,5 +10,5 @@ jobs:
         run: bash tests/check-version.sh
       - name: every script parses
         run: for f in ensconce.sh install.sh dconf-backup.sh lib/*.sh steps/*.sh tests/*.sh; do bash -n "$f"; done
-      - name: ssh, kiwi, sysctl and flatpak-language steps, and their export, in a throwaway HOME
+      - name: ssh, kiwi, sysctl, power and flatpak-language steps, and their export, in a throwaway HOME
         run: bash tests/steps.sh

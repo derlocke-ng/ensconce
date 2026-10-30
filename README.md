@@ -66,7 +66,7 @@ ensconce --dry-run && ensconce
 | `nextcloud/` | parsed back out of `nextcloud.cfg`, per-folder excludes become tags |
 | `gdm/` | `/etc/dconf/db/gdm.d/` + the greeter's display layout |
 | `kiwi-apps.list` | apps `kiwi list` shows as installed (pins kept as comments) |
-| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config; `FLATPAK_LANGUAGES` from `flatpak config` (system, else user); `SSH_SYNCED_DIR` from where `~/.ssh/config` links to, `SSH_CONTROL_DIR` from its `ControlPath`, `SSH_AGENT` from the session's `SSH_AUTH_SOCK`; `KIWI_INSTALL` from how kiwi-updater was installed |
+| `settings.sh` | `NEXTCLOUD_SERVER` from the Nextcloud client config; `FLATPAK_LANGUAGES` from `flatpak config` (system, else user); `SYSTEM_SLEEP=off` when `suspend.target` is masked; `SSH_SYNCED_DIR` from where `~/.ssh/config` links to, `SSH_CONTROL_DIR` from its `ControlPath`, `SSH_AGENT` from the session's `SSH_AUTH_SOCK`; `KIWI_INSTALL` from how kiwi-updater was installed |
 
 An export is a **starting point, not a finished config**. Three deliberate
 choices worth knowing about:
@@ -99,8 +99,10 @@ run with three layers, because none of them is sufficient alone:
 | gnome-session | idle timer, screen blank, lock | a parked `gnome-session-inhibit --inhibit-only` child |
 | dconf | `gsd-power`'s own idle→suspend timer | `idle-delay` and `sleep-inactive-*-type` forced to never |
 
-The dconf keys are saved before the run and put back afterwards — unless the
-`dconf` step changed them in the meantime, in which case your own settings win.
+The dconf keys are saved before the run and put back afterwards — except
+the ones your `dconf-settings.ini` or `SYSTEM_SLEEP=off` set, which are
+yours and stay. That holds even when your value is the same one the run
+forced, like `sleep-inactive-ac-type='nothing'`.
 
 > A session inhibitor requested with a one-shot `gdbus call` is dropped the
 > instant that D-Bus connection closes, so it looks like it worked and does
@@ -135,7 +137,8 @@ ensconce/
 │   ├── 11-gdm.sh           Login screen (GDM) settings
 │   ├── 12-ssh.sh           Synced SSH config, Bitwarden as the SSH agent
 │   ├── 13-kiwi.sh          kiwi-updater and kiwi apps
-│   └── 14-sysctl.sh        Kernel tunables (sysctl.d drop-ins)
+│   ├── 14-sysctl.sh        Kernel tunables (sysctl.d drop-ins)
+│   └── 15-power.sh         Turn off suspend, hibernation, lid-close sleep
 ├── config/                 Your personal configuration (gitignored)
 ├── config.example/         Template configuration (committed)
 ├── tests/                  check-version.sh (release gate), steps.sh
@@ -303,6 +306,22 @@ the system and the user installation, since each keeps its own list. Then it
 runs `flatpak update` for any installation that already has apps, which
 fetches the new languages. That update also updates the apps themselves.
 Leave it empty to keep Flatpak's own choice.
+
+### Sleep: suspend, hibernation, lid close
+
+For machines that don't wake up reliably, `SYSTEM_SLEEP="off"` in
+`settings.sh` makes the `power` step turn sleep off at every level:
+
+| Level | What it does |
+|---|---|
+| systemd | masks `sleep`, `suspend`, `hibernate`, `hybrid-sleep` and `suspend-then-hibernate.target`, so nothing can start them, not even `systemctl suspend` |
+| logind | `/etc/systemd/logind.conf.d/90-ensconce-no-sleep.conf` ignores the lid (on battery, on power and docked), the suspend and hibernate keys, and the idle action. Applied by reloading logind, without ending your session |
+| GNOME | `sleep-inactive-ac-type` and `sleep-inactive-battery-type` set to `'nothing'`, so GNOME doesn't try an idle suspend that can only fail |
+
+Closing the lid then leaves the machine running. The screen still blanks and
+locks as GNOME is set to. `SYSTEM_SLEEP="on"` unmasks the targets and removes
+the logind file. It leaves GNOME's idle suspend alone; set that in
+`dconf-settings.ini` or in Settings → Power.
 
 ### Kernel tunables (sysctl)
 
