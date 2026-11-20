@@ -18,6 +18,16 @@ heading (tests/check-version.sh).
   only the settings ensconce knows, as text, and writes them anew. "Use as
   Setup Config" does the same, after copying your current config to
   `~/.local/state/ensconce/`.
+- **Fonts.** The new `fonts` part exports your own fonts from
+  `~/.local/share/fonts` and `~/.fonts`, and the `fonts` step installs the
+  missing ones. Fonts are only exported when asked for (`--parts fonts`, or
+  the switch in the app): they can be hundreds of MB.
+- **Font settings left over from before GNOME 48.** A setting that names
+  Cantarell or Source Code Pro wins over GNOME's new Adwaita fonts on an
+  updated Bluefin. The `fonts` step, and the `dconf` step after it applies
+  your settings, offer to reset such settings; `--export` writes them as
+  comments, so they no longer spread to new computers. The app has **Reset
+  Old Font Settings…** in its menu.
 - **`--export --parts dconf,flatpaks,…`** exports only those parts.
   `settings.sh` is always written. Every export now also gets
   `ensconce-export.info`: the computer, the date, the version, the image and

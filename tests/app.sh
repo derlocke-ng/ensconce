@@ -18,12 +18,23 @@ check() { local what="$1"; shift; if "$@"; then ok "$what"; else bad "$what"; fi
 
 STUB="$WORK/stub"
 mkdir -p "$STUB" "$WORK/home/.config/gtk-3.0"
+# dconf: dump prints a group with an old font; read/reset keep keys in files
+export FAKE_DCONF="$WORK/dconfkeys"
 cat > "$STUB/dconf" << 'EOF'
 #!/usr/bin/env bash
-[[ $1 == dump ]] && printf '[/]\nkey=1\n'
+case $1 in
+    dump)  if [[ $2 == /org/gnome/desktop/interface/ ]]; then
+               printf "[/]\nfont-name='Cantarell 11'\nmonospace-font-name='JetBrains Mono 11'\n"
+           else printf '[/]\nkey=1\n'; fi ;;
+    read)  cat "$FAKE_DCONF$2" 2>/dev/null ;;
+    reset) echo "reset $2" >> "$FAKE_DCONF.log"; rm -f "$FAKE_DCONF$2" ;;
+esac
 exit 0
 EOF
 printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB/systemctl"
+# fc-list: the new fonts are installed
+printf '#!/usr/bin/env bash\necho "Adwaita Sans"\necho Cantarell\n' > "$STUB/fc-list"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$STUB/fc-cache"
 chmod +x "$STUB"/*
 echo "file:///tmp Tmp" > "$WORK/home/.config/gtk-3.0/bookmarks"
 
@@ -48,7 +59,35 @@ out="$(ens --yes --export "$WORK/exp2" --parts dconf,bogus 2>&1)"; rc=$?
 check "an unknown part is refused" test "$rc" -ne 0 -a ! -e "$WORK/exp2/settings.sh"
 
 ens --yes --export "$WORK/all" > /dev/null 2>&1
-check "without --parts every part is exported" grep -qx 'PARTS=packages repos flatpaks overrides extensions cacert nextcloud dconf gdm ssh kiwi sysctl power' "$WORK/all/ensconce-export.info"
+check "without --parts every part but the fonts is exported" grep -qx 'PARTS=packages repos flatpaks overrides extensions cacert nextcloud dconf gdm ssh kiwi sysctl power' "$WORK/all/ensconce-export.info"
+check "an old font setting is left out of the export, as a comment" \
+    grep -qx "# font-name='Cantarell 11'   # GNOME's font before GNOME 48, left out" "$WORK/all/dconf-settings.ini"
+check "other font settings stay in the export" grep -qx "monospace-font-name='JetBrains Mono 11'" "$WORK/all/dconf-settings.ini"
+
+# ── fonts ──────────────────────────────────────────────────────────────────
+mkdir -p "$WORK/home/.local/share/fonts/sub" "$WORK/home/.fonts/sub"
+echo a > "$WORK/home/.local/share/fonts/sub/A.ttf"
+echo u > "$WORK/home/.local/share/fonts/.uuid"
+echo b > "$WORK/home/.fonts/B.otf"
+echo old > "$WORK/home/.fonts/sub/A.ttf"
+ens --yes --export "$WORK/fexp" --parts fonts > /dev/null 2>&1
+check "--parts fonts exports both font folders" test -f "$WORK/fexp/fonts/sub/A.ttf" -a -f "$WORK/fexp/fonts/B.otf"
+check "the newer font folder wins over the older one" grep -qx a "$WORK/fexp/fonts/sub/A.ttf"
+check "fontconfig's cache files are not exported" test ! -e "$WORK/fexp/fonts/.uuid"
+
+# the fonts step: installs what is missing, keeps what differs, resets old font settings
+mkdir -p "$WORK/fhome/.local/share/fonts/sub" "$FAKE_DCONF/org/gnome/desktop/interface"
+echo mine > "$WORK/fhome/.local/share/fonts/sub/A.ttf"
+echo "'Cantarell 11'" > "$FAKE_DCONF/org/gnome/desktop/interface/font-name"
+echo "'JetBrains Mono 11'" > "$FAKE_DCONF/org/gnome/desktop/interface/monospace-font-name"
+env -i HOME="$WORK/fhome" PATH="$STUB:/usr/bin:/bin" FAKE_DCONF="$FAKE_DCONF" CONFIG_DIR="$WORK/fexp" \
+    ASSUME_DEFAULTS=true bash -c '
+    for l in "$0"/lib/*.sh; do source "$l"; done; source "$0/steps/16-fonts.sh"; step_fonts' "$ROOT" \
+    < /dev/null > "$WORK/fonts.out" 2>&1
+check "the fonts step installs a missing font" test -f "$WORK/fhome/.local/share/fonts/B.otf"
+check "the fonts step keeps your font of the same name" grep -qx mine "$WORK/fhome/.local/share/fonts/sub/A.ttf"
+check "the fonts step resets a setting that names Cantarell" grep -qx 'reset /org/gnome/desktop/interface/font-name' "$FAKE_DCONF.log"
+check "the fonts step keeps other font settings" test -f "$FAKE_DCONF/org/gnome/desktop/interface/monospace-font-name"
 
 # ── --init next to the app's own settings ─────────────────────────────────
 mkdir -p "$WORK/inithome/.config/ensconce"

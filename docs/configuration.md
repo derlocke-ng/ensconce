@@ -49,6 +49,7 @@ itself.
 | `config/gdm/dconf.d/` | Login screen settings, installed to `/etc/dconf/db/gdm.d/` |
 | `config/gdm/monitors.xml` | Login screen display layout (optional) |
 | `config/kiwi-apps.list` | kiwi apps to install (one name per line) |
+| `config/fonts/` | your own fonts, installed to `~/.local/share/fonts` |
 
 ## List file format
 
@@ -175,6 +176,27 @@ the system and the user installation, since each keeps its own list. Then it
 runs `flatpak update` for any installation that already has apps, which
 fetches the new languages. That update also updates the apps themselves.
 Leave it empty to keep Flatpak's own choice.
+
+## Fonts
+
+Fonts of your own go in `fonts/`, with any subfolders. The `fonts` step
+copies each one that is missing into `~/.local/share/fonts` and updates the
+font cache. A font you already have under the same name stays as it is, even
+when the two differ.
+
+The step also looks for font settings left over from before GNOME 48. GNOME
+48 replaced its fonts: Adwaita Sans and Adwaita Mono took the place of
+Cantarell and Source Code Pro. A setting that still names the old fonts, for
+example `font-name='Cantarell 11'` written by GNOME Tweaks or brought along by
+an older export, wins over the new defaults on an updated Bluefin. The step
+lists these settings in your dconf (the interface, document, monospace and
+title bar fonts) and asks to reset them, so the defaults apply. Other font
+settings stay. It only reports files that name the old fonts in
+`/etc/dconf/db/` and in your fontconfig settings, for you to check by hand.
+The `dconf` step does the same check after it applies `dconf-settings.ini`.
+
+The old fonts themselves come with the image and stay installed. Nothing
+uses them once no setting names them.
 
 ## Sleep: suspend, hibernation, lid close
 

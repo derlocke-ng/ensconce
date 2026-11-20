@@ -65,7 +65,8 @@ class ExportDialog:
         where.add(dest)
         page.add(where)
 
-        chosen = set(window.settings["export_parts"]) or {p.key for p in exports.PARTS}
+        chosen = set(window.settings["export_parts"]) or set(exports.DEFAULT_PARTS)
+        files, size = exports.my_fonts()
         group = Adw.PreferencesGroup(
             title="What to Export",
             description="Parts marked private may hold your Nextcloud server, certificates "
@@ -74,7 +75,14 @@ class ExportDialog:
         self.switches: dict[str, Adw.SwitchRow] = {}
         for part in exports.PARTS:
             sub = "private" if part.private else ""
-            row = Adw.SwitchRow(title=part.title, subtitle=_esc(" · ".join(filter(None, [sub, part.note]))))
+            note = part.note
+            if part.key == "fonts":
+                note = (
+                    f"{files} files, {exports.size_text(size)} in your font folders"
+                    if files
+                    else "you have no fonts of your own"
+                )
+            row = Adw.SwitchRow(title=part.title, subtitle=_esc(" · ".join(filter(None, [sub, note]))))
             row.add_prefix(Gtk.Image(icon_name=part.icon))
             row.set_active(part.key in chosen)
             row.connect("notify::active", lambda *_a: self._check())
@@ -94,8 +102,7 @@ class ExportDialog:
 
     def _on_export(self, *_a) -> None:
         parts = [k for k, r in self.switches.items() if r.get_active()]
-        every = len(parts) == len(exports.PARTS)
-        self.window.settings.set("export_parts", [] if every else parts)
+        self.window.settings.set("export_parts", [] if parts == exports.DEFAULT_PARTS else parts)
         self.dialog.close()
         self.window.run_export(parts)
 

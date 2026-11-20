@@ -14,13 +14,18 @@ EXPORT_DIR=""
 
 # What --parts can name: the steps an export has something for. settings.sh is
 # always written, an export without it is no config. EXPORT_ONLY holds the
-# chosen ones, comma-separated; empty means all.
+# chosen ones, comma-separated; empty means all but the fonts, which can be
+# hundreds of MB and are exported only when named.
 EXPORT_PART_NAMES=(packages repos flatpaks overrides extensions cacert nextcloud
-                   dconf gdm ssh kiwi sysctl power)
+                   dconf gdm ssh kiwi sysctl power fonts)
 EXPORT_ONLY=""
 
 _part_on() {
-    [[ -z "$EXPORT_ONLY" || ",$EXPORT_ONLY," == *",$1,"* ]]
+    if [[ -z "$EXPORT_ONLY" ]]; then
+        [[ "$1" != fonts ]]
+    else
+        [[ ",$EXPORT_ONLY," == *",$1,"* ]]
+    fi
 }
 
 # dconf subtrees worth carrying between machines. A full `dconf dump /` also
@@ -361,7 +366,49 @@ _export_dconf() {
         n=$((n + 1))
     done
 
-    log_success "dconf-settings.ini: $n subtree(s), $(grep -c '^\[' "$out") group(s)"
+    # A font setting that names Cantarell or Source Code Pro is left out (as a
+    # comment): on GNOME 48 and later it would win over the new default fonts
+    local old
+    old=$(awk -v re="$OLD_FONT_RE" '
+        /^\[/ { grp = $0; next }
+        (grp == "[org/gnome/desktop/interface]" || grp == "[org/gnome/desktop/wm/preferences]") &&
+        $0 ~ /^(font-name|document-font-name|monospace-font-name|titlebar-font)=/ && $0 ~ re { n++ }
+        END { print n + 0 }' "$out")
+    if [[ $old -gt 0 ]]; then
+        awk -v re="$OLD_FONT_RE" '
+            /^\[/ { grp = $0; print; next }
+            (grp == "[org/gnome/desktop/interface]" || grp == "[org/gnome/desktop/wm/preferences]") &&
+            $0 ~ /^(font-name|document-font-name|monospace-font-name|titlebar-font)=/ && $0 ~ re {
+                print "# " $0 "   # GNOME'"'"'s font before GNOME 48, left out"; next }
+            { print }' "$out" > "$out.tmp" && mv "$out.tmp" "$out"
+    fi
+
+    log_success "dconf-settings.ini: $n subtree(s), $(grep -c '^\[' "$out") group(s)$([[ $old -gt 0 ]] && echo ", $old old font setting(s) left out")"
+}
+
+# ============================================================================
+# Fonts of your own — reverse of the fonts step
+# ============================================================================
+
+_export_fonts() {
+    local dst="$EXPORT_DIR/fonts" dir f rel n=0
+    mkdir -p "$dst"
+    # ~/.local/share/fonts first: a file of the same name in ~/.fonts is
+    # the older copy
+    for dir in "${FONT_DIRS[@]}"; do
+        [[ -d "$dir" ]] || continue
+        while IFS= read -r -d '' f; do
+            rel="${f#"$dir"/}"
+            font_file_is_cache "$rel" && continue
+            [[ -e "$dst/$rel" ]] && continue
+            install -Dm644 "$f" "$dst/$rel" && n=$((n + 1))
+        done < <(find "$dir" -type f -print0)
+    done
+    if [[ $n -eq 0 ]]; then
+        log_info "fonts/: no fonts of your own"
+    else
+        log_success "fonts/: $n file(s), $(du -sh "$dst" | cut -f1)"
+    fi
 }
 
 # ============================================================================
@@ -725,6 +772,7 @@ run_export() {
     if _part_on gdm;        then _export_gdm; fi
     if _part_on ssh;        then _export_ssh; fi
     if _part_on kiwi;       then _export_kiwi; fi
+    if _part_on fonts;      then _export_fonts; fi
     _export_settings
     _export_info
 

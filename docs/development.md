@@ -17,6 +17,7 @@ ensconce/
 │   ├── inhibitor.sh        keeps the computer awake during a run
 │   ├── export.sh           --export: reads this computer's setup
 │   ├── ssh.sh              SSH paths shared by the ssh step and --export
+│   ├── fonts.sh            your fonts, font settings from before GNOME 48
 │   └── preflight.sh        checks before a run
 ├── steps/                  one script per step, NN-name.sh
 ├── config.example/         the example config that --init copies

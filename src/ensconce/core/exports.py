@@ -35,6 +35,7 @@ class Part:
     root: bool = False  # applying it asks for the password
     private: bool = False  # may hold something not for everybody
     note: str = ""
+    default: bool = True  # in an export unless turned off
 
 
 # In the order the steps run. rebase and ujust are not here: they set up a
@@ -79,7 +80,18 @@ PARTS: tuple[Part, ...] = (
     Part("kiwi", "Kiwi Apps", ("kiwi-apps.list",), "software-update-available-symbolic"),
     Part("sysctl", "Kernel Tunables", ("sysctl.d/",), "applications-system-symbolic", root=True),
     Part("power", "Sleep", (), "weather-clear-night-symbolic", root=True),
+    # Can be hundreds of MB: only exported when asked for. Applying it also
+    # resets font settings that name GNOME's fonts from before GNOME 48.
+    Part(
+        "fonts",
+        "Fonts",
+        ("fonts/",),
+        "font-x-generic-symbolic",
+        default=False,
+        note="your own, from ~/.local/share/fonts",
+    ),
 )
+DEFAULT_PARTS = [p.key for p in PARTS if p.default]
 PART = {p.key: p for p in PARTS}
 
 # settings.sh: the only lines taken from an export, and the steps they feed.
@@ -96,6 +108,39 @@ SETTINGS = {
 _SETTING = re.compile(
     r"""^\s*(?:export\s+)?([A-Z_]+)=(?:"([^"$`\\]*)"|'([^']*)'|([^\s#'"$`;&|]*))\s*(?:#.*)?$"""
 )
+
+
+def font_dirs() -> list[Path]:
+    """Where fonts of your own are (lib/fonts.sh: FONT_DIRS)."""
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return [Path(base) / "fonts", Path.home() / ".fonts"]
+
+
+_FONT_CACHE = {".uuid", "fonts.dir", "fonts.scale"}
+
+
+def _is_font(p: Path) -> bool:
+    return p.is_file() and p.name not in _FONT_CACHE and not p.name.startswith("fonts.cache-")
+
+
+def size_text(n: int) -> str:
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1000 or unit == "GB":
+            return f"{n} {unit}" if unit == "bytes" else f"{n:.0f} {unit}"
+        n /= 1000
+    return ""
+
+
+def my_fonts() -> tuple[int, int]:
+    """(files, bytes) of your own fonts."""
+    files = size = 0
+    for d in font_dirs():
+        if d.is_dir():
+            for p in d.rglob("*"):
+                if _is_font(p):
+                    files += 1
+                    size += p.stat().st_size
+    return files, size
 
 
 def this_host() -> str:
@@ -216,8 +261,18 @@ def content(folder: Path, part: Part, conf: dict[str, str] | None = None) -> Con
         return Content(
             part, "sleep turned off" if sleep == "off" else "sleep turned back on", [f"SYSTEM_SLEEP={sleep}"]
         )
-    # a folder of files: repos.d, flatpak-overrides, certs, gdm, sysctl.d
+    # a folder of files: repos.d, flatpak-overrides, certs, gdm, sysctl.d, fonts
     files = [f for name in part.files for f in _files(folder, name)]
+    if k == "fonts":
+        files = [f for f in files if _is_font(f)]
+        if not files:
+            return None
+        size = sum(f.stat().st_size for f in files)
+        return Content(
+            part,
+            f"{_plural(len(files), 'file')}, {size_text(size)}",
+            [str(f.relative_to(folder / "fonts")) for f in files],
+        )
     if k == "repos":
         files = [f for f in files if f.name.endswith(".repo")]  # .repo.disabled is for reference
     if not files:
@@ -357,18 +412,18 @@ def write_settings(src: Path, dst: Path) -> None:
 APP_FILES = ("settings.json", "window.json", "icons")
 
 
-def copy_as_config(export: Path, dst: Path) -> None:
+def copy_as_config(export: Path, dst: Path, *, link_fonts: bool = False) -> None:
     """Copy an export to dst as an ensconce config: its files, with
     settings.sh written anew (write_settings) and the info file left out.
-    The app's own files in dst stay."""
+    The app's own files in dst stay. link_fonts: fonts/ becomes a link to the
+    export's, for a config that is only used once (a restore), so hundreds of
+    MB of fonts are not copied for it."""
     tmp = dst.parent / f".{dst.name}.new"
     shutil.rmtree(tmp, ignore_errors=True)
-    shutil.copytree(
-        export,
-        tmp,
-        ignore=shutil.ignore_patterns(INFO_FILE, "settings.sh", ".*.partial", *APP_FILES),
-        symlinks=False,
-    )
+    skip = [INFO_FILE, "settings.sh", ".*.partial", *APP_FILES] + (["fonts"] if link_fonts else [])
+    shutil.copytree(export, tmp, ignore=shutil.ignore_patterns(*skip), symlinks=False)
+    if link_fonts and (export / "fonts").is_dir():
+        (tmp / "fonts").symlink_to((export / "fonts").resolve())
     write_settings(export, tmp)
     for name in APP_FILES:
         old = dst / name

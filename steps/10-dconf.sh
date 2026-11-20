@@ -36,6 +36,11 @@ step_dconf() {
 
     log_success "dconf settings applied"
 
+    # An export from an older install may name Cantarell; it would win over
+    # GNOME's new default fonts (lib/fonts.sh)
+    echo ""
+    fix_old_font_settings
+
     # ── GTK3 bookmarks (Nautilus sidebar) ──
     local bookmarks_file="$CONFIG_DIR/gtk3-bookmarks"
     local bookmarks_dest="$HOME/.config/gtk-3.0/bookmarks"

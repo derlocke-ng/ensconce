@@ -9,7 +9,7 @@ LICENSE=GPL-3.0-or-later
 COMPONENTS=cli gui
 DESKTOP_ID=eu.kiwinetwork.Ensconce
 CATEGORY=System
-TAGS=setup provisioning postinstall backup restore export migrate nextcloud bluefin silverblue flatpak dconf packages ssh bitwarden kiwi sysctl suspend
+TAGS=setup provisioning postinstall backup restore export migrate nextcloud bluefin silverblue flatpak dconf packages ssh bitwarden kiwi sysctl suspend fonts
 
 SCOPES=user
 

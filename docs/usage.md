@@ -49,6 +49,7 @@ They run in this order:
 | `kiwi` | installs kiwi-updater and the kiwi apps in `kiwi-apps.list` |
 | `sysctl` | installs kernel tunables to `/etc/sysctl.d/` |
 | `power` | turns sleep, hibernation and sleep on lid close off or on |
+| `fonts` | installs your own fonts from `fonts/` and resets font settings left over from before GNOME 48 |
 
 Each step starts with a line such as `==> Step 3/7: flatpaks`. A step that
 finds nothing in the config skips itself.
@@ -115,13 +116,16 @@ computers share.
 | `nextcloud/` | the Nextcloud client's `nextcloud.cfg`; each folder's exclude list becomes a tag |
 | `gdm/` | `/etc/dconf/db/gdm.d/` and the login screen's display layout |
 | `kiwi-apps.list` | the apps `kiwi list` shows as installed; pins are kept as comments |
+| `fonts/` | your own fonts from `~/.local/share/fonts` and `~/.fonts`; only with `--parts fonts` |
 | `settings.sh` | the settings worked out from the above: Nextcloud server, Flatpak languages, sleep, SSH and kiwi-updater |
 | `ensconce-export.info` | which computer made the export, when, with which version, and its parts; the app reads it, ensconce does not |
 
 `--parts` takes the names of the steps the export has something for:
 `packages`, `repos`, `flatpaks`, `overrides`, `extensions`, `cacert`,
-`nextcloud`, `dconf`, `gdm`, `ssh`, `kiwi`, `sysctl` and `power`.
-`settings.sh` is always written.
+`nextcloud`, `dconf`, `gdm`, `ssh`, `kiwi`, `sysctl`, `power` and `fonts`.
+`settings.sh` is always written. Without `--parts`, every part but `fonts` is
+exported: your fonts can be hundreds of MB, so they go into an export only
+when you name them.
 
 An export is a starting point, not a finished config. Three choices are
 worth knowing:
@@ -134,7 +138,9 @@ worth knowing:
   use it. Every other file is treated as yours.
 - **dconf** is limited to subtrees that make sense on another computer. All
   of `dconf dump /` would also carry window positions, the monitor layout and
-  lists of recent files, which are wrong on different hardware.
+  lists of recent files, which are wrong on different hardware. A font
+  setting that names Cantarell or Source Code Pro is written as a comment
+  instead (see [Fonts](configuration.md#fonts)).
 - **Nextcloud exclude lists** are merged when they are the same. A list used
   by several folders is called `browser` or `shared`; a list used by one
   folder is named after it.

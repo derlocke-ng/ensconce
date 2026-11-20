@@ -100,10 +100,13 @@ def test_contents(tmp_path: Path) -> None:
             "repos.d__b.repo.disabled": "[b]\n",
             "certs__.gitkeep": "",
             "nextcloud__folders.list": "Documents|/cloud/Documents\n",
+            "fonts__X.ttf": "font",
+            "fonts__.uuid": "x",
         },
     )
     got = {c.part.key: c for c in exports.load(d).contents()}
-    assert set(got) == {"repos", "packages", "flatpaks", "dconf", "nextcloud", "ssh", "power"}
+    assert set(got) == {"repos", "packages", "flatpaks", "dconf", "nextcloud", "ssh", "power", "fonts"}
+    assert got["fonts"].items == ["X.ttf"] and got["fonts"].summary.startswith("1 file, ")
     assert got["packages"].items == ["vim", "htop"]
     assert got["packages"].summary == "2 packages"
     assert got["flatpaks"].summary == "1 app, languages en;de"
@@ -136,6 +139,20 @@ def test_copy_as_config_rewrites_settings_and_drops_info(tmp_path: Path) -> None
     assert (dst / "icons" / "mine.svg").is_file()
     assert "evil" not in (dst / "settings.sh").read_text()
     assert exports.settings(dst)["SYSTEM_SLEEP"] == "off"
+
+
+def test_restore_config_links_the_fonts(tmp_path: Path) -> None:
+    d = make(tmp_path / "x", "h", "s", **{"fonts__A.ttf": "font", "packages.list": "vim\n"})
+    dst = tmp_path / "restore"
+    exports.copy_as_config(d, dst, link_fonts=True)
+    assert (dst / "fonts").is_symlink() and (dst / "fonts" / "A.ttf").read_text() == "font"
+    full = tmp_path / "config"
+    exports.copy_as_config(d, full)
+    assert not (full / "fonts").is_symlink() and (full / "fonts" / "A.ttf").is_file()
+
+
+def test_default_parts_leave_out_fonts() -> None:
+    assert "fonts" not in exports.DEFAULT_PARTS and "dconf" in exports.DEFAULT_PARTS
 
 
 def test_partial_finish_and_delete(tmp_path: Path, monkeypatch) -> None:

@@ -51,7 +51,9 @@ read them. Turn them off if you share the folder with other people.
 
 Click **+** (Export This Computer). The dialog lists the parts of a setup;
 turn off what you do not want in the export, and click **Export**. The app
-remembers your choice for the next export. `settings.sh` is always written:
+remembers your choice for the next export. **Fonts** is off at first: the
+dialog shows how many files and MB your own fonts are, and every export with
+them carries a full copy. `settings.sh` is always written:
 without it an export is not a config ensconce can use.
 
 ![The export dialog with a switch for each part](images/ensconce-export.png)
@@ -96,6 +98,16 @@ tunables and sleep. The steps run `sudo` for them, and the app shows a
 password dialog for sudo. Layered packages need a restart before they are in
 use; the output says so. The steps for the desktop (extensions, settings)
 may also need you to log out and in again.
+
+## Reset old font settings
+
+GNOME 48 replaced Cantarell and Source Code Pro with Adwaita Sans and Adwaita
+Mono. On a computer installed before that, a setting may still name the old
+fonts and win over the new defaults. **Reset Old Font Settings…** in the main
+menu runs the `fonts` step, which resets those settings and leaves the
+others alone. If your setup config has a `fonts/` folder, the step installs
+the fonts in it too. [Configuration](configuration.md#fonts) says exactly
+what it checks.
 
 ## What the app never does
 

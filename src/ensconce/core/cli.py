@@ -50,6 +50,12 @@ def restore_argv(config: Path, steps: list[str], dry_run: bool = False) -> list[
     return argv
 
 
+def fonts_argv() -> list[str]:
+    """The fonts step alone: installs the config's fonts/, if it has any, and
+    resets font settings that name GNOME's fonts from before GNOME 48."""
+    return _env() + ["bash", str(SCRIPT), "--yes", "--only", "fonts"]
+
+
 def is_step_line(line: str) -> bool:
     """ensconce.sh prints "==> Step 2/5: name — …" as each step starts."""
     return line.startswith("==> Step ")

@@ -24,7 +24,7 @@ CONTENT_WIDTH = 760  # the page's column; Adw.PreferencesPage would cap it at 60
 
 DEFAULTS = {
     "exports_folder": "",  # "" = ~/Ensconce
-    "export_parts": [],  # what the export dialog had on last time; [] = all
+    "export_parts": [],  # what the export dialog had on last time; [] = the default parts
     "export_first": True,  # restore: export this computer first
 }
 
@@ -56,6 +56,7 @@ class Window(Adw.ApplicationWindow):
         for name, callback in (
             ("open-exports", lambda: self.open_folder(self.folder)),
             ("open-config", self._open_config),
+            ("old-fonts", self._old_fonts),
         ):
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", lambda *_a, c=callback: c())
@@ -71,6 +72,7 @@ class Window(Adw.ApplicationWindow):
             menu_actions=[
                 ("Open Exports Folder", "win.open-exports"),
                 ("Open Setup Config Folder", "win.open-config"),
+                ("Reset Old Font Settings…", "win.old-fonts"),
             ],
             extra_end=[self.jobs.output_button],
         )
@@ -136,6 +138,35 @@ class Window(Adw.ApplicationWindow):
                 self.toast("ensconce has no setup config yet")
 
         worker.run(cli.config_dir, done)
+
+    def _old_fonts(self) -> None:
+        if not self._free():
+            return
+        alert = Adw.AlertDialog(
+            heading="Reset Old Font Settings?",
+            body="GNOME 48 replaced Cantarell and Source Code Pro with Adwaita Sans and "
+            "Adwaita Mono. A setting that still names the old fonts wins over the new "
+            "defaults; older installs and exports often have one. This resets those "
+            "settings, so the default fonts apply. Other font settings stay.",
+        )
+        alert.add_response("cancel", "Cancel")
+        alert.add_response("reset", "Reset")
+        alert.set_response_appearance("reset", Adw.ResponseAppearance.SUGGESTED)
+        alert.set_default_response("cancel")
+
+        def answered(_d, response) -> None:
+            if response == "reset":
+                self.jobs.output_button.set_active(True)
+                self.jobs.run(
+                    "Reset Old Font Settings",
+                    cli.fonts_argv(),
+                    on_done=lambda rc: self.toast(
+                        "Done — the output shows what was reset" if rc == 0 else "Stopped — see the output"
+                    ),
+                )
+
+        alert.connect("response", answered)
+        alert.present(self)
 
     # ── refresh ───────────────────────────────────────────────────────────
     def _on_active(self, *_a) -> None:
@@ -253,7 +284,6 @@ class Window(Adw.ApplicationWindow):
         except OSError as exc:
             self.toast(f"Cannot write to {self.folder}: {exc.strerror}")
             return
-        every = len(parts) in (0, len(exports.PARTS))
 
         def done(rc: int) -> None:
             ok = rc == 0 and (partial / "settings.sh").is_file()
@@ -277,7 +307,7 @@ class Window(Adw.ApplicationWindow):
 
         self.jobs.run(
             "Export This Computer",
-            cli.export_argv(partial, [] if every else parts),
+            cli.export_argv(partial, parts or exports.DEFAULT_PARTS),
             on_done=done,
         )
 
@@ -288,7 +318,7 @@ class Window(Adw.ApplicationWindow):
         config = cli.state_dir() / "restore" / f"{e.host}-{stamp}"
         try:
             config.parent.mkdir(parents=True, exist_ok=True)
-            exports.copy_as_config(e.path, config)
+            exports.copy_as_config(e.path, config, link_fonts=True)
         except OSError as exc:
             self.toast(f"Cannot read the export: {exc.strerror or exc}")
             return
