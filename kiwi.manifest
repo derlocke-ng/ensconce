@@ -1,14 +1,15 @@
 # kiwi.manifest — app metadata for the kiwi updater
 NAME=ensconce
-DESCRIPTION=Modular post-installation setup for Bluefin-DX — packages, Flatpaks, extensions, dconf and login screen from plain list files
-VERSION=2.5.0
+DESCRIPTION=Post-installation setup for Bluefin-DX from plain list files, and an app that exports a computer's setup into a shared folder and restores it on another
+VERSION=2.6.0
 AUTHOR=derlocke-ng
 HOMEPAGE=https://github.com/derlocke-ng/ensconce
 LICENSE=GPL-3.0-or-later
 
-COMPONENTS=cli
+COMPONENTS=cli gui
+DESKTOP_ID=eu.kiwinetwork.Ensconce
 CATEGORY=System
-TAGS=setup provisioning postinstall bluefin silverblue flatpak dconf packages ssh bitwarden kiwi sysctl suspend
+TAGS=setup provisioning postinstall backup restore export migrate nextcloud bluefin silverblue flatpak dconf packages ssh bitwarden kiwi sysctl suspend fonts
 
 SCOPES=user
 

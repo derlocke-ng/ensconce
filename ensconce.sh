@@ -17,11 +17,12 @@
 #   --status            Show current progress and exit
 #   --list-steps        List available steps and exit
 #   --reset             Clear saved progress and start fresh
+#   --yes               Ask nothing: every question takes its default answer
 #   -h, --help          Show this help message
 
 set -euo pipefail
 
-ENSCONCE_VERSION="2.5.0"
+ENSCONCE_VERSION="2.6.0"
 
 # Resolve through symlinks: an installed copy lives in <prefix>/share/ensconce
 # with <prefix>/bin/ensconce pointing at it, and lib/ + steps/ have to be found
@@ -44,6 +45,9 @@ INIT_CONFIG=false
 LIST_STEPS=false
 DO_EXPORT=false
 EXPORT_TARGET=""
+EXPORT_PARTS=""
+# shellcheck disable=SC2034  # read by confirm() in lib/helpers.sh
+ASSUME_DEFAULTS=false
 SHOW_CONFIG_DIR=false
 SKIP_STEPS=()
 ONLY_STEPS=()
@@ -72,6 +76,9 @@ done
 reexec_under_inhibit() {
     [[ -n "${ENSCONCE_INHIBITED:-}" ]] && return 0
     command -v systemd-inhibit &> /dev/null || return 0
+    # No logind to ask (a container, a bare chroot): run without the block
+    # rather than not at all
+    systemd-inhibit --list --no-pager &> /dev/null || return 0
 
     # Informational / instant commands don't need the machine held awake
     local arg
@@ -82,12 +89,13 @@ reexec_under_inhibit() {
     done
 
     export ENSCONCE_INHIBITED=1
+    # through bash, so a checkout whose files lost their exec bit still runs
     exec systemd-inhibit \
         --what=sleep:idle:handle-lid-switch \
         --who="ensconce" \
         --why="Running post-installation setup" \
         --mode=block \
-        "$ENSCONCE_SELF" "$@"
+        "${BASH:-bash}" "$ENSCONCE_SELF" "$@"
 }
 
 reexec_under_inhibit "$@"
@@ -186,7 +194,9 @@ init_config() {
         exit 1
     fi
 
-    if [[ -d "$dst" ]]; then
+    # The folder alone is no config: the app keeps its own settings.json in
+    # ~/.config/ensconce too
+    if [[ -f "$dst/settings.sh" ]]; then
         log_warn "Config directory already exists: $dst"
         if ! confirm "Overwrite with examples? (existing files will be replaced)" "n"; then
             log_info "Cancelled"
@@ -194,8 +204,9 @@ init_config() {
         fi
     fi
 
-    mkdir -p "$(dirname "$dst")"
-    cp -r "$src" "$dst"
+    # -T: into $dst itself, also when it exists (cp -r would nest the copy)
+    mkdir -p "$dst"
+    cp -rT "$src" "$dst"
     log_success "Created $dst from config.example/"
     echo ""
     log_info "Edit these files to customize your setup:"
@@ -263,6 +274,8 @@ Usage: $(basename "$0") [options]
 Options:
   --init              Create personal config from config.example/
   --export [dir]      Capture this machine's setup into a config directory
+  --parts <parts>     With --export: only these parts (comma-separated step
+                      names: packages,flatpaks,dconf,…); settings.sh always
   --config-dir        Print the config directory in use and exit
   --skip <steps>      Skip step(s) (comma-separated: rebase,ujust,packages)
   --only <steps>      Run only these step(s) (comma-separated)
@@ -271,6 +284,7 @@ Options:
   --status            Show current progress and exit
   --list-steps        List all available steps and exit
   --reset             Clear saved progress and start fresh
+  --yes               Ask nothing: every question takes its default answer
   -h, --help          Show this help message
 
 Steps:
@@ -340,6 +354,12 @@ parse_args() {
                 fi
                 shift
                 ;;
+            --parts)
+                [[ -z "${2:-}" ]] && { log_error "--parts requires part name(s)"; exit 1; }
+                EXPORT_PARTS="$2"
+                shift 2
+                ;;
+            --yes)         ASSUME_DEFAULTS=true; shift ;;
             -h|--help)     show_help ;;
             *)
                 log_error "Unknown option: $1"
@@ -387,7 +407,7 @@ main() {
     fi
 
     if [[ "$DO_EXPORT" == "true" ]]; then
-        run_export "$EXPORT_TARGET"
+        run_export "$EXPORT_TARGET" "$EXPORT_PARTS"
         exit 0
     fi
 
@@ -486,6 +506,12 @@ main() {
 
     # ── Run steps ──
 
+    local step_no=0 step_total=0
+    for step_name in "${ALL_STEPS[@]}"; do
+        is_step_done "$step_name" && [[ ${#ONLY_STEPS[@]} -eq 0 ]] && continue
+        should_run_step "$step_name" && step_total=$((step_total + 1))
+    done
+
     for step_name in "${ALL_STEPS[@]}"; do
         # Already completed (from saved progress)
         if is_step_done "$step_name" && [[ ${#ONLY_STEPS[@]} -eq 0 ]]; then
@@ -493,14 +519,20 @@ main() {
             continue
         fi
 
-        # Filtered out by --skip / --only
+        # Filtered out by --skip / --only. A skipped step counts as done; one
+        # that --only leaves out stays as it was, for the next full run.
         if ! should_run_step "$step_name"; then
-            log_info "[$step_name] Skipped"
-            mark_step_done "$step_name"
+            if [[ ${#ONLY_STEPS[@]} -eq 0 ]]; then
+                log_info "[$step_name] Skipped"
+                mark_step_done "$step_name"
+            fi
             continue
         fi
 
-        # Run the step
+        # Run the step. The "==> Step" line is what the Ensconce app counts.
+        step_no=$((step_no + 1))
+        echo ""
+        echo -e "${GREEN}==> Step $step_no/$step_total: $step_name${NC} — ${STEP_DESCRIPTIONS[$step_name]}"
         local step_rc=0
         "step_${step_name}" || step_rc=$?
 
@@ -550,7 +582,8 @@ main() {
 
     log_success "All done! Enjoy your Bluefin-DX setup 🐟"
 
-    if confirm "Clear saved progress (setup complete)?" "y"; then
+    # A run of a few steps (--only) leaves the progress of the full run alone
+    if [[ ${#ONLY_STEPS[@]} -eq 0 ]] && confirm "Clear saved progress (setup complete)?" "y"; then
         reset_progress
     fi
 }

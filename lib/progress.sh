@@ -7,6 +7,8 @@ init_progress() {
 }
 
 mark_step_done() {
+    # a dry run changed nothing, so nothing is done
+    [[ "${DRY_RUN:-false}" == "true" ]] && return 0
     init_progress
     if ! grep -qx "$1" "$PROGRESS_FILE" 2>/dev/null; then
         echo "$1" >> "$PROGRESS_FILE"
@@ -59,7 +61,8 @@ show_progress_status() {
     fi
 
     local completed
-    completed=$(grep -c . "$PROGRESS_FILE" 2>/dev/null || echo 0)
+    # grep -c prints 0 and fails when nothing is done yet; "|| echo 0" made that "0\n0"
+    completed=$(grep -c . "$PROGRESS_FILE" 2>/dev/null) || completed=0
     local total=${#ALL_STEPS[@]}
 
     if [[ "$completed" -eq "$total" ]]; then
