@@ -4,7 +4,7 @@ Releases of ensconce. The newest is on top; kiwi.manifest's VERSION, the
 version in ensconce.sh and the app's `__version__` are the same as its
 heading (tests/check-version.sh).
 
-## 2.6.0 — unreleased
+## 2.6.0 — 2026-11-20
 
 - **Ensconce, the app.** `ensconce-gui` is a GTK 4 window for exporting and
   restoring setups. It lists the exports in one folder, grouped by the
