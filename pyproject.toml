@@ -1,7 +1,7 @@
 # The app (src/ensconce). The command is bash: ensconce.sh, lib/, steps/.
 [project]
 name = "ensconce"
-version = "2.6.0"
+version = "2.6.1"
 description = "Export a computer's setup into a shared folder and restore it on another"
 requires-python = ">=3.11"
 license = { text = "GPL-3.0-or-later" }

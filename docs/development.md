@@ -97,6 +97,7 @@ a temporary `$HOME` and stub commands, and change nothing outside it.
 | `bash tests/check-version.sh` | the version is the same in `kiwi.manifest`, `ensconce.sh`, the app and `CHANGELOG.md`, and the scripts are executable in git |
 | `bash tests/steps.sh` | the ssh, kiwi, sysctl, power and Flatpak language steps, and their export |
 | `bash tests/app.sh` | what the app needs from the command: `--export --parts`, the info file, `--yes`, no colour codes, sudo through `SUDO_ASKPASS`, `--init`, progress |
+| `bash tests/install.sh` | `install.sh` install, update (also over a failed one) and uninstall, with and without the app |
 | `python3 -m pytest` | the app's `core/`: reading exports, the settings it takes over, replacing a config |
 | `bash tools/kit-check.sh` | the kit is the unchanged copy |
 

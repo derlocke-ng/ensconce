@@ -4,6 +4,15 @@ Releases of ensconce. The newest is on top; kiwi.manifest's VERSION, the
 version in ensconce.sh and the app's `__version__` are the same as its
 heading (tests/check-version.sh).
 
+## 2.6.1 — unreleased
+
+- **The update to 2.6.0 failed while installing the app:** `install.sh`
+  copied the app into `~/.local/share/ensconce/python/` before creating that
+  folder. kiwi kept the old version and retries the update. The command
+  itself was already updated and works.
+- **`tests/install.sh`** installs, updates (also over a failed update) and
+  uninstalls into a throwaway home, with and without the app. CI runs it.
+
 ## 2.6.0 — 2026-11-20
 
 - **Ensconce, the app.** `ensconce-gui` is a GTK 4 window for exporting and

@@ -50,6 +50,7 @@ refresh_desktop() {
 
 install_gui() {
     say "installing the app (ensconce-gui) + desktop entry + icon"
+    mkdir -p "$LIBDIR/python"
     cp -r "$SRC/src/ensconce" "$LIBDIR/python/ensconce"
     find "$LIBDIR/python" -name __pycache__ -type d -prune -exec rm -rf {} +
     install -Dm755 "$SRC/bin/ensconce-gui"      "$LIBDIR/bin/ensconce-gui"

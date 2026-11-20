@@ -14,8 +14,10 @@ jobs:
         run: bash tests/steps.sh
       - name: what the app needs from the command (--export --parts, --yes, askpass), in a throwaway HOME
         run: bash tests/app.sh
+      - name: install, update and uninstall, with and without the app, in a throwaway HOME
+        run: bash tests/install.sh
       - name: shellcheck the app's scripts and the installer
-        run: shellcheck -S warning install.sh bin/* tests/app.sh tools/*.sh
+        run: shellcheck -S warning install.sh bin/* lib/fonts.sh steps/16-fonts.sh tests/app.sh tests/install.sh tools/*.sh
       - name: the kit is the unmodified copy from kiwi-template
         run: bash tools/kit-check.sh
       - name: the app — lint, unit tests, imports with GTK 4 and libadwaita

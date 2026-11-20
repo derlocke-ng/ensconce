@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .kit import AppInfo
 
-__version__ = "2.6.0"
+__version__ = "2.6.1"
 APP = "ensconce"
 APP_ID = "eu.kiwinetwork.Ensconce"
 NAME = "Ensconce"

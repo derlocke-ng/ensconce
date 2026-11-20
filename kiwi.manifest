@@ -1,7 +1,7 @@
 # kiwi.manifest — app metadata for the kiwi updater
 NAME=ensconce
 DESCRIPTION=Post-installation setup for Bluefin-DX from plain list files, and an app that exports a computer's setup into a shared folder and restores it on another
-VERSION=2.6.0
+VERSION=2.6.1
 AUTHOR=derlocke-ng
 HOMEPAGE=https://github.com/derlocke-ng/ensconce
 LICENSE=GPL-3.0-or-later
