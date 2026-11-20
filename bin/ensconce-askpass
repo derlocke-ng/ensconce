@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ensconce-askpass — the password dialog sudo opens (SUDO_ASKPASS) while the
+# app runs ensconce. Part of the package ensconce: src/ in a checkout,
+# python/ in an install.
+here="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+for d in "$here/../src" "$here/../python"; do
+    if [[ -f $d/ensconce/__init__.py ]]; then
+        PYTHONPATH="$(cd "$d" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
+        export PYTHONPATH
+        exec python3 -m ensconce.ui.askpass "$@"
+    fi
+done
+echo "ensconce-askpass: the app is not installed completely — reinstall ensconce" >&2
+exit 1

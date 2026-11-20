@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ensconce-gui — starts Ensconce, the app. It is the Python package ensconce:
+# src/ in a checkout, python/ in an install (install.sh).
+here="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+for d in "$here/../src" "$here/../python"; do
+    if [[ -f $d/ensconce/__init__.py ]]; then
+        PYTHONPATH="$(cd "$d" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
+        export PYTHONPATH
+        exec python3 -m ensconce.ui "$@"
+    fi
+done
+echo "ensconce-gui: the app is not installed completely — reinstall ensconce" >&2
+exit 1

@@ -1,0 +1,21 @@
+# The app (src/ensconce). The command is bash: ensconce.sh, lib/, steps/.
+[project]
+name = "ensconce"
+version = "2.6.0"
+description = "Export a computer's setup into a shared folder and restore it on another"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+# kit/ is a copy of kiwi-template's kit (tools/kit-check.sh): never reformatted here.
+extend-exclude = ["src/ensconce/kit"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+pythonpath = ["src"]

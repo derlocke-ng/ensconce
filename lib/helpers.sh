@@ -12,9 +12,14 @@ run_cmd() {
 
 # Prompt for yes/no confirmation
 # Usage: confirm "Do this?" [y|n]
+#
+# With --yes (ASSUME_DEFAULTS=true) nobody is asked: every question takes its
+# default answer, which is printed. The Ensconce app runs ensconce so, after
+# the user chose there what to apply.
 confirm() {
     local prompt="$1"
     local default="${2:-y}"
+    local response
 
     if [[ "$default" == "y" ]]; then
         prompt="$prompt [Y/n] "
@@ -22,10 +27,23 @@ confirm() {
         prompt="$prompt [y/N] "
     fi
 
+    if [[ "${ASSUME_DEFAULTS:-false}" == "true" ]]; then
+        echo "$prompt$default"
+        [[ "$default" == "y" ]]
+        return
+    fi
+
     read -r -p "$prompt" response
     response="${response:-$default}"
     [[ "$response" =~ ^[Yy]$ ]]
 }
+
+# Without a terminal (the Ensconce app) sudo cannot ask for the password
+# itself; with SUDO_ASKPASS set it asks through that program, the app's
+# password dialog. Every `sudo` in the steps goes through here, run_cmd's too.
+if [[ -n "${SUDO_ASKPASS:-}" && ! -t 0 ]]; then
+    sudo() { command sudo -A "$@"; }
+fi
 
 # Check that a command exists
 check_command() {

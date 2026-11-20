@@ -12,6 +12,17 @@
 
 EXPORT_DIR=""
 
+# What --parts can name: the steps an export has something for. settings.sh is
+# always written, an export without it is no config. EXPORT_ONLY holds the
+# chosen ones, comma-separated; empty means all.
+EXPORT_PART_NAMES=(packages repos flatpaks overrides extensions cacert nextcloud
+                   dconf gdm ssh kiwi sysctl power)
+EXPORT_ONLY=""
+
+_part_on() {
+    [[ -z "$EXPORT_ONLY" || ",$EXPORT_ONLY," == *",$1,"* ]]
+}
+
 # dconf subtrees worth carrying between machines. A full `dconf dump /` also
 # picks up window positions, per-monitor state and recently-used lists, which
 # are noise at best and wrong at worst on different hardware.
@@ -635,7 +646,7 @@ NEXTCLOUD_SERVER="${NEXTCLOUD_SERVER_EXPORTED:-}"
 FLATPAK_LANGUAGES="${FLATPAK_LANGUAGES_EXPORTED:-}"
 
 # Sleep (step: power): off | on | empty
-SYSTEM_SLEEP="$([[ "$(systemctl is-enabled suspend.target 2>/dev/null)" == masked ]] && echo off)"
+SYSTEM_SLEEP="$(_part_on power && [[ "$(systemctl is-enabled suspend.target 2>/dev/null)" == masked ]] && echo off)"
 
 # SSH (step: ssh) — paths relative to \$HOME, empty skips
 SSH_SYNCED_DIR="${SSH_SYNCED_DIR_EXPORTED:-}"
@@ -652,8 +663,34 @@ SETTINGSEOF
 # Entry point
 # ============================================================================
 
+# ensconce-export.info: who made the export and what is in it, as KEY=value
+# lines. The Ensconce app lists exports by it; ensconce itself never reads it.
+_export_info() {
+    local image=""
+    command -v rpm-ostree &> /dev/null && image=$(get_current_image)
+    {
+        echo "# ensconce export — read by the Ensconce app, not by ensconce"
+        echo "HOST=$(hostname -s 2>/dev/null || hostname)"
+        echo "USER=$(id -un)"
+        echo "DATE=$(date -Iseconds)"
+        echo "VERSION=${ENSCONCE_VERSION:-}"
+        echo "IMAGE=$image"
+        echo "PARTS=$(for p in "${EXPORT_PART_NAMES[@]}"; do _part_on "$p" && printf '%s ' "$p"; done | sed 's/ $//')"
+    } > "$EXPORT_DIR/ensconce-export.info"
+}
+
 run_export() {
     EXPORT_DIR="${1:-}"
+    EXPORT_ONLY="${2:-}"
+
+    local p
+    for p in ${EXPORT_ONLY//,/ }; do
+        if [[ " ${EXPORT_PART_NAMES[*]} " != *" $p "* ]]; then
+            log_error "Unknown part: '$p'"
+            log_info "Parts: ${EXPORT_PART_NAMES[*]}"
+            exit 1
+        fi
+    done
 
     if [[ -z "$EXPORT_DIR" ]]; then
         EXPORT_DIR="./ensconce-config-$(hostname -s)-$(date +%Y-%m-%d)"
@@ -674,20 +711,22 @@ run_export() {
     log_info "Target: $EXPORT_DIR"
     echo ""
 
-    _export_packages
-    _export_flatpaks
-    _export_extensions
-    _export_overrides
-    _export_repos
-    _export_certs
-    _export_sysctl
-    _export_dconf
-    _export_bookmarks
-    _export_nextcloud
-    _export_gdm
-    _export_ssh
-    _export_kiwi
+    [[ -n "$EXPORT_ONLY" ]] && log_info "Parts: ${EXPORT_ONLY//,/, }"
+
+    if _part_on packages;   then _export_packages; fi
+    if _part_on flatpaks;   then _export_flatpaks; fi
+    if _part_on extensions; then _export_extensions; fi
+    if _part_on overrides;  then _export_overrides; fi
+    if _part_on repos;      then _export_repos; fi
+    if _part_on cacert;     then _export_certs; fi
+    if _part_on sysctl;     then _export_sysctl; fi
+    if _part_on dconf;      then _export_dconf; _export_bookmarks; fi
+    if _part_on nextcloud;  then _export_nextcloud; fi
+    if _part_on gdm;        then _export_gdm; fi
+    if _part_on ssh;        then _export_ssh; fi
+    if _part_on kiwi;       then _export_kiwi; fi
     _export_settings
+    _export_info
 
     echo ""
     log_success "Export complete: $EXPORT_DIR"

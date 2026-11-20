@@ -3,12 +3,27 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # libadwaita 1.5: Adw.Dialog
     steps:
       - uses: actions/checkout@v4
-      - name: release gate — ensconce.sh and kiwi.manifest agree on the version
+      - name: release gate — the version agrees everywhere, scripts executable in git
         run: bash tests/check-version.sh
       - name: every script parses
-        run: for f in ensconce.sh install.sh dconf-backup.sh lib/*.sh steps/*.sh tests/*.sh; do bash -n "$f"; done
+        run: for f in ensconce.sh install.sh dconf-backup.sh bin/* lib/*.sh steps/*.sh tests/*.sh tools/*.sh; do bash -n "$f"; done
       - name: ssh, kiwi, sysctl, power and flatpak-language steps, and their export, in a throwaway HOME
         run: bash tests/steps.sh
+      - name: what the app needs from the command (--export --parts, --yes, askpass), in a throwaway HOME
+        run: bash tests/app.sh
+      - name: shellcheck the app's scripts and the installer
+        run: shellcheck -S warning install.sh bin/* tests/app.sh tools/*.sh
+      - name: the kit is the unmodified copy from kiwi-template
+        run: bash tools/kit-check.sh
+      - name: the app — lint, unit tests, imports with GTK 4 and libadwaita
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q python3-gi gir1.2-adw-1 python3-pytest
+          pipx run ruff check src tests
+          pipx run ruff format --check src tests
+          python3 -m pytest -q
+          PYTHONPATH=src python3 -c "import gi; gi.require_version('Gtk','4.0'); gi.require_version('Adw','1'); import ensconce.ui.window, ensconce.ui.dialogs, ensconce.ui.prefs, ensconce.ui.askpass"
+      - name: docs follow the kiwi-docs guide
+        run: python3 .claude/skills/kiwi-docs/scripts/check-docs.py .
